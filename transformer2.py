@@ -1,4 +1,23 @@
 from lark import Transformer, Token
+class IndTreeNode:
+        def  __init__(self, value):
+            self.level = 0
+            self.value = value
+            self.children = []
+
+        def add_child(self, child_node):
+            self.children.append(child_node)
+
+        def set_value(self, value):
+            self.value = value
+
+        def get_children(self):
+            return self.children
+            
+        def __repr__(self):
+            children_repr = ', '.join(repr(child) for child in self.children)
+            return f"IndTreeNode(\"{self.value}\", [{children_repr}])"
+        
 
 class TestTransformer(Transformer):
     def __init__(self):
@@ -105,8 +124,9 @@ class TestTransformer(Transformer):
         var, _, val = items
         cur_code = f"{var} = {val}"
 
-        cur_code += '\n'
-        return cur_code  # 应该返回什么值？
+
+        node = IndTreeNode(cur_code)
+        return node
     
     # PRINT语句
     def print_stmt(self, items):
@@ -116,8 +136,9 @@ class TestTransformer(Transformer):
         else:
             cur_code += f"print({items[0]})"
 
-        cur_code += '\n'
-        return cur_code
+        
+        node = IndTreeNode(cur_code)
+        return node
 
     def print_list(self, items):
         list_code = ""
@@ -135,22 +156,33 @@ class TestTransformer(Transformer):
 
     # IF语句
     def if_stmt(self, items):
-        cur_code = ""
+        if_node = IndTreeNode(None)
+        else_node = IndTreeNode(None)
+        if_code = ""
+        else_code = ""
+
         if items[-1] != "ENDIF":
-        # "IF" expression "THEN" stmt
-        # if expression:
-        # 
-        #     command()
-        # else:
-        #    
-        #     pass
-            cur_code += f"if ({items[1]}):\n"
+        # # "IF" expression "THEN" stmt
+        # # if expression:
+        # # 
+        # #     command()
+        # # else:
+        # #    
+        # #     pass
+            # cur_code += f"if ({items[1]}):\n"
             
-            cur_code += f"{items[3]}\n"
+            # cur_code += f"{items[3]}\n"
             
-            cur_code += f"else:\n"
+            # cur_code += f"else:\n"
             
-            cur_code += f"pass\n"
+            # cur_code += f"pass\n"
+            if_code = f"if ({items[1]}):"
+            if_node.set_value(if_code)
+            if_node.add_child(items[3])
+            else_code = f"else:"
+            pass_node = IndTreeNode("pass")
+            else_node.set_value(else_code)
+            else_node.add_child(pass_node)
 
         else:
         # "IF" expression stmts "ELSE" stmts "ENDIF"
@@ -158,31 +190,49 @@ class TestTransformer(Transformer):
         #       if_stmts
         #  else:
         #       else_stmts
-            cur_code += f"if {items[1]}:\n"
+
+
+        #     cur_code += f"if {items[1]}:\n"            
+        #     if_stmts = ""
+        #     else_stmts = ""
+        #     found_else = False
+        #     for stmt in items[2:-1]:
+        #         if stmt == "ELSE":
+        #             found_else = True
+        #         elif not found_else:
+        #             if_stmts += stmt
+        #         else:
+        #             else_stmts += stmt
+
+        #     cur_code += f"{if_stmts}\n"
             
-            if_stmts = ""
-            else_stmts = ""
+        #     cur_code += f"else:\n"
+            
+        #     cur_code += f"{else_stmts}\n"
+            print(items)
+            if_code = f"if {items[1]}:"
+            else_code = f"else:"
+
+            if_stmts = []
+            else_stmts = []
             found_else = False
             for stmt in items[2:-1]:
                 if stmt == "ELSE":
                     found_else = True
                 elif not found_else:
-                    if_stmts += stmt
+                    if_stmts.append(stmt)
                 else:
-                    else_stmts += stmt
+                    else_stmts.append(stmt)
 
-            
-            cur_code += f"{if_stmts}\n"
-            
-            cur_code += f"else:\n"
-            
-            cur_code += f"{else_stmts}\n"
+            if_node.set_value(if_code)
+            for node in if_stmts:
+                if_node.add_child(node)
 
-            # print(cur_code)
-            return cur_code
+            else_node.set_value(else_code)
+            for node in else_stmts:
+                else_node.add_child(node)
 
-
-        return cur_code
+        return [if_node, else_node]
             
 
     def stmt(self, items):
@@ -190,8 +240,9 @@ class TestTransformer(Transformer):
         
     def top_node(self, items):
         # 遍历列表，将语句放入code中
-        for stmt in items:
-            self.code += stmt
+        # for stmt in items:
+        #     self.code += stmt
+        print(items)
 
 
     def func_ret(self, items):
