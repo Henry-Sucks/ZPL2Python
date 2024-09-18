@@ -1,0 +1,19 @@
+x = 1
+y = 2
+if x > y:
+print("x is greater than y")
+print("Print one more just for test.")
+
+else:
+if (x == y):
+print("x equals y")
+
+else:
+pass
+if (x < y):
+print("x is smaller than y")
+
+else:
+pass
+
+
