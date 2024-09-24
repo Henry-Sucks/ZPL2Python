@@ -71,8 +71,6 @@ value: num
         | func_ret
         | id_val
 
-
-func_ret: function_id "(" expression_list ")"
 num: SIGNED_NUMBER
 string: ESCAPED_STRING
 id_def: IDENTIFIER   
@@ -126,3 +124,12 @@ ELSE: "ELSE"
 %ignore WS
 %ignore NEWLINE
 %ignore COMMENT
+
+
+
+//// 函数返回值
+func_ret: abso_func
+	| powr_func
+
+abso_func: "ABSO" "(" expression_list ")"
+powr_func: "POWR" "(" expression_list ")"

@@ -41,8 +41,6 @@ class IndTreeNode:
             self.level = cur_level
             self.value = f"{self.get_indentation()}{self.value}"
             self.level += 1
-            # print(self.level)
-            # print(self.value)
 
 
             ## 遍历子节点，加上子节点返回的代码
@@ -92,8 +90,7 @@ class TestTransformer(Transformer):
         return item[0]
     
     def func_ret(self, items):
-        for item in items:
-            print(item)
+        return items[0]
     
     """
     表达式
@@ -169,6 +166,17 @@ class TestTransformer(Transformer):
 
         return cur_code
     
+    def expression_list(self, items):
+        list_code = ""
+        if len(items) == 0:
+            return None
+        list_code = items[0]
+
+        if(len(items) == 1):
+            pass
+        else:
+            list_code = f"{list_code}, {items[1]}"
+        return list_code
 
 
 
@@ -279,7 +287,27 @@ class TestTransformer(Transformer):
     def stmt(self, items):
         return items[0]
     
+    """
+    函数处理
+    """
+    # def abso_func(self, items):
+    #     cur_code = "abs"
+    #     cur_code += f"({items[0]})"
+    #     return cur_code
 
+    # def powr_func(self, items):
+    #     cur_code = "pow"
+    #     cur_code += f"({items[0]})"
+    #     return cur_code
+    
+    def create_func_method(self, zpl_name, py_name):
+        def func_method(items):
+            cur_code = py_name
+            cur_code += f"({items[0]})"
+            return cur_code
+        
+        method_name = f"{zpl_name}_func"
+        setattr(self, method_name, func_method)
     """
     构建缩进树
     """
