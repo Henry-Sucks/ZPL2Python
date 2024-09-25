@@ -1,0 +1,26 @@
+[
+    {
+    "description": "ABSO(x), 计算绝对值",
+    "is built-in": true, 
+    "zpl_name": "ABSO",
+    "py_name": "abs"
+    },
+    {
+    "description": "POWR(x), 计算绝对值",
+    "is built-in": true,
+    "zpl_name": "POWR",
+    "py_name": "pow"
+    }, 
+    {
+        "description": "A(x, y), 计算x*y",
+        "is built-in": false,
+        "zpl_name": "A",
+        "py_name": "A"
+    },
+    {
+        "description": "B(x, y), 计算x+y",
+        "is built-in": false,
+        "zpl_name": "A",
+        "py_name": "A"
+    }
+]
