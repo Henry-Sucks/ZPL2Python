@@ -14,13 +14,16 @@
     {
         "description": "A(x, y), 计算x*y",
         "is built-in": false,
+        "src":"/home/ZPL2Python/mylib/src/A.c++",
         "zpl_name": "A",
-        "py_name": "A"
+        "py_name": "a"
+
     },
     {
         "description": "B(x, y), 计算x+y",
         "is built-in": false,
-        "zpl_name": "A",
-        "py_name": "A"
+        "src":"/home/ZPL2Python/mylib/src/B.c++",
+        "zpl_name": "B",
+        "py_name": "b"
     }
 ]

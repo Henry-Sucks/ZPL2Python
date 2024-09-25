@@ -1,15 +1,15 @@
 import json
-
-config_path = 'func_config.json'
-grammar_path = 'grammer.lark'
-include_path = '/home/ZPL2Python/mylib/include/mylib.h'
+import os
+import stat
 
 class FunctionLoader:
-    def __init__(self, config_path, grammar_path, transformer):
+    def __init__(self, config_path, grammar_path, transformer, include_path):
         self.config_path = config_path
         self.grammar_path = grammar_path
         self.transformer = transformer
         self.func_list = []
+        self.not_built_in_func_list = []
+        self.has_not_built_ins = False
 
         # 第三方库头文件的存放处
         # /home/ZPL2Python/mylib/include/mylib.h
@@ -19,9 +19,16 @@ class FunctionLoader:
 
 
         # binding.cpp存放路径
+        self.bindings_cpp_path = 'bindings.cpp'
 
-        # CMakeLists相关路径
-        
+        # CMakeLists存放路径
+        self.cmakelists_path = 'CMakeLists.txt'
+
+        # build.shell存放路径
+        self.build_shell_path = './build.sh'
+
+        # 便于transformer import的制作的字符串
+        self.import_not_built_ins_list = ""
     
 
 
@@ -38,52 +45,94 @@ class FunctionLoader:
 
         for func in func_list:
             self.func_list.append(func)
+            if not func['is built-in']:
+                self.not_built_in_func_list.append(func)
+                self.has_not_built_ins = True
+
 
     # 如果需要引用外部c++库的函数，利用pybind11进行引用
-    def add_binding(self):
+    def add_bindings(self):
         bindings_cpp_func_list = ""
-        cmakelists_func_list = ""
-        for func in self.func_list:
-            if not func["is built-in"]:
-                # 如果是外部定义的函数
-                # 假设外部库是非常规整的形式，i.e，所有源文件放在同一文件夹中并已经注册到同一头文件中
-                # 假设源文件中定义的函数名称与ZPL中函数名称相同
+        cmakelists_set_func_path = ""
+        cmakelists_func_path_list = ""
 
-                ## 向bindings.cpp中添加函数
-                ## 格式：m.def("A", &A, "A function that multiplies two numbers");
-                bindings_cpp_func_list += f'\tm.def("{func["zpl_name"]}", &{func["zpl_name"]}, "{func["description"]}");\n'
+        for index, func in enumerate(self.not_built_in_func_list):
+            # 如果是外部定义的函数
+            # 假设外部库是非常规整的形式，i.e，所有源文件放在同一文件夹中并已经注册到同一头文件中
+            # 假设源文件中定义的函数名称与ZPL中函数名称相同
 
+            ## 向bindings.cpp中添加函数
+            ## 格式：m.def("A", &A, "A function that multiplies two numbers");
+            bindings_cpp_func_list += f'\tm.def("{func["py_name"]}", &{func["zpl_name"]}, "{func["description"]}");\n'
+            ## 向CMakeList中添加函数
+            ## 格式：set(a_path "/home/ZPL2Python/mylib/src/A.c++")
+            cmakelists_set_func_path += f'set({func["py_name"]}_path "{func["src"]}")\n'
+            ## 格式：add_library(funcs ${a_path} ${b_path})
+            cmakelists_func_path_list += f'${{{func["py_name"]}_path}} '
 
-    def get_cmakelists(self, ):
-        cmakelists_base_code = """
-cmake_minimum_required(VERSION 3.12)
-project(zpl2python_project)
-
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-find_package(pybind11 REQUIRED)
-
-add_library(funcs A.cpp B.cpp)
-pybind11_add_module(your_module_name bindings.cpp)
-target_link_libraries(your_module_name PRIVATE funcs)
-"""
+            ## 格式 from xx import a, b
+            self.import_not_built_ins_list += func["py_name"]
+            if index < len(self.not_built_in_func_list) - 1:
+                self.import_not_built_ins_list += ', '
+            
 
 
-    def get_bindings_cpp(self, function_bindings):
+        self.build_bindings_cpp(bindings_cpp_func_list)
+        cmakelists_add_path_to_lib = f'add_library(funcs {cmakelists_func_path_list})\n'
+        self.build_cmakelists(cmakelists_set_func_path, cmakelists_add_path_to_lib)
+
+        self.build_shell()
+        os.system(self.build_shell_path)
+
+    def build_cmakelists(self, cmakelists_set_func_path, cmakelists_add_path_to_lib):
+        cmakelists_code = """\
+cmake_minimum_required(VERSION 3.12)\n\
+project(zpl2python_project)\n\
+set(CMAKE_CXX_STANDARD 11)\n\
+set(CMAKE_CXX_STANDARD_REQUIRED ON)\n\
+find_package(pybind11 REQUIRED)\n\
+# 设置函数源文件的路径\n\
+{set_func_path}\
+# 使用变量来指定函数源文件\n\
+{add_path_to_lib}\
+# 设置include_path\n\
+include_directories({include_dir})\n\
+pybind11_add_module({module_name} bindings.cpp)\n\
+target_link_libraries({module_name} PRIVATE funcs)\n\
+""".format(set_func_path=cmakelists_set_func_path, add_path_to_lib=cmakelists_add_path_to_lib, include_dir=os.path.dirname(self.include_path), module_name=self.module_name)
+        
+        # 写入bindings.cpp
+        with open(self.cmakelists_path, 'w', encoding='utf-8') as cmakelists:
+            cmakelists.write(cmakelists_code)
+
+    def build_bindings_cpp(self, bindings_cpp_func_list):
         base_binding_cpp_basecode = """#include <pybind11/pybind11.h>\n\
 #include "{include_path}"\n\
 namespace py = pybind11;\n\
 PYBIND11_MODULE({module_name}, m){{\n\
 """.format(include_path=self.include_path, module_name=self.module_name)
         
-        ## 写入bindings.cpp
-        ## 默认bindings.cpp在同一个原目录下
-        bindings_cpp_code = base_binding_cpp_basecode + function_bindings + "}\n"
-        with open('bindings.cpp', 'w', encoding='utf-8') as bindings_cpp:
+        # 写入bindings.cpp
+        bindings_cpp_code = base_binding_cpp_basecode + bindings_cpp_func_list + "}\n"
+        with open(self.bindings_cpp_path, 'w', encoding='utf-8') as bindings_cpp:
             bindings_cpp.write(bindings_cpp_code)
         
+    def build_shell(self):
+        build_shell_code = """\
+mkdir -p build\n\
+cd build\n\
+export CMAKE_PREFIX_PATH=/usr/local/lib/python3.8/dist-packages:$CMAKE_PREFIX_PATH\n\
+cmake ..\n\
+cmake --build\n\
+cd build\n\
+make
+"""
+        # 写入build.sh
+        with open(self.build_shell_path, 'w', encoding='utf-8') as build_shell:
+            build_shell.write(build_shell_code)
 
+        # 要执行，赋予权限
+        os.chmod(self.build_shell_path, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
 
     # 向语法注入函数处理
     def add_grammar(self):
@@ -115,6 +164,16 @@ PYBIND11_MODULE({module_name}, m){{\n\
         for func in self.func_list:
             self.transformer.create_func_method(func['zpl_name'].lower(), func['py_name'])
 
+
+
+    def get_module_name(self):
+        return self.module_name
+    
+    def get_has_not_built_ins(self):
+        return self.has_not_built_ins
+
+    def get_import_not_built_ins_list(self):
+        return self.import_not_built_ins_list
         
         
 
@@ -123,20 +182,10 @@ PYBIND11_MODULE({module_name}, m){{\n\
 
 
             
-
-            
-
-            
-
-            
-
-
-
 if __name__ == "__main__":
     loader = FunctionLoader(config_path, grammar_path, "")
     loader.load_config()
-    loader.add_binding()
-    # loader.add_grammar()
+    loader.add_bindings()
 
             
 

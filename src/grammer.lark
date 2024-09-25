@@ -124,12 +124,3 @@ ELSE: "ELSE"
 %ignore WS
 %ignore NEWLINE
 %ignore COMMENT
-
-
-
-//// 函数返回值
-func_ret: abso_func
-	| powr_func
-
-abso_func: "ABSO" "(" expression_list ")"
-powr_func: "POWR" "(" expression_list ")"
