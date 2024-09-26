@@ -68,6 +68,8 @@ class TestTransformer(Transformer):
         self.vars = {}
         self.code = ""
         self.top_ind_tree = IndTreeNode("")
+        self.called_not_built_in_list = []
+        self.called_has_not_built_in = False
 
 
     """
@@ -300,7 +302,7 @@ class TestTransformer(Transformer):
     #     cur_code += f"({items[0]})"
     #     return cur_code
     
-    def create_func_method(self, zpl_name, py_name):
+    def create_built_in_func_method(self, zpl_name, py_name):
         def func_method(items):
             cur_code = py_name
             cur_code += f"({items[0]})"
@@ -308,6 +310,30 @@ class TestTransformer(Transformer):
         
         method_name = f"{zpl_name}_func"
         setattr(self, method_name, func_method)
+
+    def create_not_built_in_func_method(self, zpl_name, py_name):
+        def func_method(items):
+            cur_code = py_name
+            cur_code += f"({items[0]})"
+            if py_name not in self.called_not_built_in_list:
+                self.called_not_built_in_list.append(py_name)
+            self.called_has_not_built_in = True
+            return cur_code
+        
+        method_name = f"{zpl_name}_func"
+        setattr(self, method_name, func_method)
+
+    
+    def get_called_not_built_in_list(self):
+        called_not_built_in_list = ''
+        for index, func in enumerate(self.called_not_built_in_list):
+            called_not_built_in_list += func
+            if index < len(self.called_not_built_in_list) - 1:
+                called_not_built_in_list += ', '
+
+        return called_not_built_in_list
+    
+
     """
     构建缩进树
     """
@@ -318,6 +344,9 @@ class TestTransformer(Transformer):
     
     def get_ind_tree(self):
         return self.top_ind_tree
+    
+
+
 
 
     

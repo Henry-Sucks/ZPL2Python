@@ -1,0 +1,2 @@
+/usr/bin/ar qc libfuncs.a  CMakeFiles/funcs.dir/mylib/src/A.c++.o CMakeFiles/funcs.dir/mylib/src/B.c++.o CMakeFiles/funcs.dir/mylib/src/C.c++.o
+/usr/bin/ranlib libfuncs.a

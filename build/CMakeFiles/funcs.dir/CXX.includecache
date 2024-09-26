@@ -1,0 +1,22 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../mylib/include/mylib.h
+
+/home/ZPL2Python/mylib/src/A.c++
+mylib.h
+/home/ZPL2Python/mylib/src/mylib.h
+
+/home/ZPL2Python/mylib/src/B.c++
+mylib.h
+/home/ZPL2Python/mylib/src/mylib.h
+
+/home/ZPL2Python/mylib/src/C.c++
+mylib.h
+/home/ZPL2Python/mylib/src/mylib.h
+

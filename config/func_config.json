@@ -2,12 +2,14 @@
     {
     "description": "ABSO(x), 计算绝对值",
     "is built-in": true, 
+    "src":"",
     "zpl_name": "ABSO",
     "py_name": "abs"
     },
     {
     "description": "POWR(x), 计算绝对值",
     "is built-in": true,
+    "src":"",
     "zpl_name": "POWR",
     "py_name": "pow"
     }, 
@@ -25,5 +27,12 @@
         "src":"/home/ZPL2Python/mylib/src/B.c++",
         "zpl_name": "B",
         "py_name": "b"
+    },
+    {
+        "description": "C(x, y), 计算x/y",
+        "is built-in": false,
+        "src":"/home/ZPL2Python/mylib/src/C.c++",
+        "zpl_name": "C",
+        "py_name": "c"
     }
 ]

@@ -1,0 +1,4 @@
+/home/ZPL2Python/build/CMakeFiles/edit_cache.dir
+/home/ZPL2Python/build/CMakeFiles/rebuild_cache.dir
+/home/ZPL2Python/build/CMakeFiles/mylib.dir
+/home/ZPL2Python/build/CMakeFiles/funcs.dir

@@ -134,6 +134,19 @@ make
         # 要执行，赋予权限
         os.chmod(self.build_shell_path, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
 
+    # 得到新的grammar path
+    def generate_new_grammar_path(self):
+        grammar_dir_path = os.path.dirname(self.grammar_path)
+        grammar_filename, grammar_extension = os.path.splitext(os.path.basename(self.grammar_path))
+
+        grammar_filename += '_1'
+
+        self.grammar_path = grammar_dir_path + '/' + grammar_filename + grammar_extension
+
+    def get_new_grammar_path(self):
+        return self.grammar_path
+
+
     # 向语法注入函数处理
     def add_grammar(self):
         gram_header = "\n//// 函数返回值\n"
@@ -154,6 +167,10 @@ make
         gram_body = f"{gram_func_ret}\n{gram_func_list}"
         gram_txt = gram_header + gram_body
 
+        with open(self.grammar_path, 'r', encoding='utf-8') as file:
+            gram_basecode = file.read()
+        gram_txt = gram_basecode + '\n' + gram_txt
+        self.generate_new_grammar_path()
         with open(self.grammar_path, 'a', encoding='utf-8') as file:
             file.write(gram_txt)
 
@@ -162,30 +179,21 @@ make
     # 问题：是动态地添加方法好？还是静态地添加方法好？
     def add_transformer(self):
         for func in self.func_list:
-            self.transformer.create_func_method(func['zpl_name'].lower(), func['py_name'])
+            if func in self.not_built_in_func_list:
+                self.transformer.create_not_built_in_func_method(func['zpl_name'].lower(), func['py_name'])
+            else:
+                self.transformer.create_built_in_func_method(func['zpl_name'].lower(), func['py_name'])
 
 
 
     def get_module_name(self):
         return self.module_name
-    
-    def get_has_not_built_ins(self):
-        return self.has_not_built_ins
 
     def get_import_not_built_ins_list(self):
         return self.import_not_built_ins_list
         
         
 
-
-
-
-
-            
-if __name__ == "__main__":
-    loader = FunctionLoader(config_path, grammar_path, "")
-    loader.load_config()
-    loader.add_bindings()
 
             
 
