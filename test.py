@@ -6,13 +6,12 @@ config_path = '/home/ZPL2Python/config/func_config.json'
 base_grammar_path = '/home/ZPL2Python/src/grammer.lark'
 include_path = '/home/ZPL2Python/mylib/include/mylib.h'
 
-transformer = TestTransformer()
-loader = FunctionLoader(config_path, base_grammar_path, transformer, include_path)
+
+loader = FunctionLoader(config_path, base_grammar_path, include_path)
 loader.load_config()
 loader.add_bindings()
 loader.add_grammar()
 new_grammar_path = loader.get_new_grammar_path()
-loader.add_transformer()
 
 
 with open(new_grammar_path, 'r', encoding='utf-8') as file:
@@ -23,8 +22,9 @@ with open('test2.zpl', 'r') as file:
     text = file.read()
 
 
-
 tree = test_parser.parse(text)
+transformer = TestTransformer(config_path)
+transformer.build_transformer()
 transformer.transform(tree)
 ind_tree = transformer.get_ind_tree()
 ind_tree.build_code()

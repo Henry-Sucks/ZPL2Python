@@ -1,4 +1,5 @@
 from lark import Transformer
+import json
 class IndTreeNode:
         def  __init__(self, value):
             self.code = ""
@@ -64,10 +65,14 @@ class IndTreeNode:
         
 
 class TestTransformer(Transformer):
-    def __init__(self):
+    def __init__(self, config_path):
         self.vars = {}
         self.code = ""
         self.top_ind_tree = IndTreeNode("")
+
+        self.config_path = config_path
+        self.func_list = []
+        self.not_built_in_func_list = []
         self.called_not_built_in_list = []
         self.called_has_not_built_in = False
 
@@ -322,6 +327,28 @@ class TestTransformer(Transformer):
         
         method_name = f"{zpl_name}_func"
         setattr(self, method_name, func_method)
+
+
+    # 向transformer注入函数处理
+    # 问题：是动态地添加方法好？还是静态地添加方法好？
+    # 将config中定义的函数载入到字典中
+    def load_config(self):
+        with open(self.config_path, 'r', encoding='utf-8') as file:
+            func_list = json.load(file)
+
+        for func in func_list:
+            self.func_list.append(func)
+            if not func['is built-in']:
+                self.not_built_in_func_list.append(func)
+                self.has_not_built_ins = True
+
+    def build_transformer(self):
+        self.load_config()
+        for func in self.func_list:
+            if func in self.not_built_in_func_list:
+                self.create_not_built_in_func_method(func['zpl_name'].lower(), func['py_name'])
+            else:
+                self.create_built_in_func_method(func['zpl_name'].lower(), func['py_name'])
 
     
     def get_called_not_built_in_list(self):

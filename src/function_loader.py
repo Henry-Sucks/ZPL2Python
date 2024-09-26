@@ -3,10 +3,9 @@ import os
 import stat
 
 class FunctionLoader:
-    def __init__(self, config_path, grammar_path, transformer, include_path):
+    def __init__(self, config_path, grammar_path, include_path):
         self.config_path = config_path
         self.grammar_path = grammar_path
-        self.transformer = transformer
         self.func_list = []
         self.not_built_in_func_list = []
         self.has_not_built_ins = False
@@ -69,13 +68,6 @@ class FunctionLoader:
             cmakelists_set_func_path += f'set({func["py_name"]}_path "{func["src"]}")\n'
             ## 格式：add_library(funcs ${a_path} ${b_path})
             cmakelists_func_path_list += f'${{{func["py_name"]}_path}} '
-
-            ## 格式 from xx import a, b
-            self.import_not_built_ins_list += func["py_name"]
-            if index < len(self.not_built_in_func_list) - 1:
-                self.import_not_built_ins_list += ', '
-            
-
 
         self.build_bindings_cpp(bindings_cpp_func_list)
         cmakelists_add_path_to_lib = f'add_library(funcs {cmakelists_func_path_list})\n'
@@ -173,16 +165,6 @@ make
         self.generate_new_grammar_path()
         with open(self.grammar_path, 'a', encoding='utf-8') as file:
             file.write(gram_txt)
-
-
-    # 向transformer注入函数处理
-    # 问题：是动态地添加方法好？还是静态地添加方法好？
-    def add_transformer(self):
-        for func in self.func_list:
-            if func in self.not_built_in_func_list:
-                self.transformer.create_not_built_in_func_method(func['zpl_name'].lower(), func['py_name'])
-            else:
-                self.transformer.create_built_in_func_method(func['zpl_name'].lower(), func['py_name'])
 
 
 

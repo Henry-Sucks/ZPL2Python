@@ -1,0 +1,140 @@
+start: top_node
+
+top_node: stmt*
+
+stmt: print_stmt 
+        | label_stmt
+        | assign_stmt
+        | if_stmt
+        | goto_stmt
+        | for_stmt
+
+//// statement
+// PRINT语句
+print_stmt: "PRINT" print_list
+print_list: expression "," print_list
+            | expression
+            |
+
+// LABEL语句
+label_stmt: "LABEL" label_id
+label_id: label_num 
+        | label_text
+label_num: NATURAL_NUMBER       // 大于 0 的整数
+label_text: IDENTIFIER // 不得包含空格或者用作分隔符的其它特殊字符
+
+// 赋值语句
+assign_stmt: id_def ASSIGNOP expression
+
+// IF语句
+!if_stmt: "IF" expression "THEN" stmt
+        | "IF" expression stmt* "ELSE" stmt* "ENDIF"
+then_clause: stmt
+
+// GOTO语句
+goto_stmt: "GOTO" expression
+
+// FOR-NEXT语句
+for_stmt: "FOR" id_val "," expression "," expression "," expression stmt* "NEXT"
+
+//// expression
+expression_list: expression "," expression_list
+                | expression
+                | 
+
+expression: not_exp AND expression
+            | not_exp OR expression
+            | not_exp XOR expression
+            | not_exp
+not_exp: NOT comp_exp
+        | comp_exp
+comp_exp: add_exp EQUAL  comp_exp 
+        | add_exp NOTEQUAL comp_exp 
+        | add_exp GREATER  comp_exp 
+        | add_exp GREATEQUAL comp_exp 
+        | add_exp LESSER  comp_exp 
+        | add_exp LESSEQUAL comp_exp 
+        | add_exp
+add_exp: mult_exp PLUS add_exp
+        | mult_exp MINUS add_exp
+        | mult_exp 
+mult_exp: negate_exp TIMES mult_exp
+        | negate_exp DIVIDE mult_exp
+        | negate_exp
+negate_exp: MINUS sub_exp
+        | sub_exp
+sub_exp: LEFTPAREN expression RIGHTPAREN
+        | value
+
+value: num
+        | string
+        | func_ret
+        | id_val
+
+num: SIGNED_NUMBER
+string: ESCAPED_STRING
+id_def: IDENTIFIER   
+id_val: IDENTIFIER 
+function_id: IDENTIFIER
+
+//// lexer
+IDENTIFIER: CNAME
+            | ESCAPED_IDENTIFIER
+
+ESCAPED_IDENTIFIER: /\\([^\s]+)/
+NEWLINE: "\n"
+NATURAL_NUMBER: /[1-9][0-9]*/ | "0"
+REM: "REM"
+COMMENT: "!" /[^\n]*/ | "REM" /[^\n]*/ | HASH /[^\n]*/
+
+// 保留字/keywords
+ASSIGNOP: "="
+LEFTPAREN: "("
+RIGHTPAREN: ")"
+PLUS: "+"
+MINUS: "-"
+TIMES: "*"
+DIVIDE: "/"
+LESSER: "<"
+GREATER: ">"
+EQUAL: "=="
+NOTEQUAL: "!="
+LESSEQUAL: "<="
+GREATEQUAL: ">="
+COMMA: ","
+COLON: ":"
+MODULO: "%"
+HASH: "#"
+SEMICOLON: ";"
+AND: "&"
+OR: "|"
+XOR: "^"
+NOT: "!"
+
+IF: "IF"
+ELSE: "ELSE"
+
+
+    
+%import common.CNAME
+%import common.ESCAPED_STRING
+%import common.SIGNED_NUMBER
+%import common.WS
+
+%ignore WS
+%ignore NEWLINE
+%ignore COMMENT
+
+
+//// 函数返回值
+func_ret: abso_func
+	| powr_func
+	| a_func
+	| b_func
+	| c_func
+
+abso_func: "ABSO" "(" expression_list ")"
+powr_func: "POWR" "(" expression_list ")"
+a_func: "A" "(" expression_list ")"
+b_func: "B" "(" expression_list ")"
+c_func: "C" "(" expression_list ")"
