@@ -1,5 +1,7 @@
 from lark import Transformer
 import json
+import os
+
 class IndTreeNode:
         def  __init__(self, value):
             self.code = ""
@@ -64,17 +66,15 @@ class IndTreeNode:
             return f"IndTreeNode(\"{self.value}\", [{children_repr}])"
         
 
-class TestTransformer(Transformer):
-    def __init__(self, config_path):
+class ZPLTransformer(Transformer):
+    def __init__(self, config_dir):
         self.vars = {}
         self.code = ""
         self.top_ind_tree = IndTreeNode("")
 
-        self.config_path = config_path
-        self.func_list = []
-        self.not_built_in_func_list = []
-        self.called_not_built_in_list = []
-        self.called_has_not_built_in = False
+        self.config_dir = config_dir
+        self.macro_list = []
+        self.compiled_macro_list = []
 
 
     """
@@ -96,7 +96,7 @@ class TestTransformer(Transformer):
     def value(self, item):
         return item[0]
     
-    def func_ret(self, items):
+    def macro_ret(self, items):
         return items[0]
     
     """
@@ -295,70 +295,115 @@ class TestTransformer(Transformer):
         return items[0]
     
     """
-    函数处理
+    宏处理
     """
     # def abso_func(self, items):
     #     cur_code = "abs"
     #     cur_code += f"({items[0]})"
     #     return cur_code
 
-    # def powr_func(self, items):
-    #     cur_code = "pow"
+    # def a_func(self, items):
+    #     cur_code = "a"
     #     cur_code += f"({items[0]})"
+    #     if py_name not in self.called_not_built_in_list:
+    #         self.called_not_built_in_list.append(py_name)
+    #     self.called_has_not_built_in = True
     #     return cur_code
     
-    def create_built_in_func_method(self, zpl_name, py_name):
-        def func_method(items):
-            cur_code = py_name
-            cur_code += f"({items[0]})"
-            return cur_code
+    # def create_built_in_func_method(self, zpl_name, py_name):
+    #     def func_method(items):
+    #         cur_code = py_name
+    #         cur_code += f"({items[0]})"
+    #         return cur_code
         
-        method_name = f"{zpl_name}_func"
-        setattr(self, method_name, func_method)
+    #     method_name = f"{zpl_name}_func"
+    #     setattr(self, method_name, func_method)
 
-    def create_not_built_in_func_method(self, zpl_name, py_name):
-        def func_method(items):
-            cur_code = py_name
-            cur_code += f"({items[0]})"
-            if py_name not in self.called_not_built_in_list:
-                self.called_not_built_in_list.append(py_name)
-            self.called_has_not_built_in = True
-            return cur_code
+    # def create_not_built_in_func_method(self, zpl_name, py_name):
+    #     def func_method(items):
+    #         cur_code = py_name
+    #         cur_code += f"({items[0]})"
+    #         if py_name not in self.called_not_built_in_list:
+    #             self.called_not_built_in_list.append(py_name)
+    #         self.called_has_not_built_in = True
+    #         return cur_code
         
-        method_name = f"{zpl_name}_func"
-        setattr(self, method_name, func_method)
+    #     method_name = f"{zpl_name}_func"
+    #     setattr(self, method_name, func_method)
 
+    def record_macro(self, macro):
+        if macro not in self.compiled_macro_list:
+            self.compiled_macro_list.append(macro)
+
+    def create_macro_method(self, macro):
+        if macro['type'] == 'built_in':
+            # Python内部实现调用
+            def macro_method(items):
+                self.record_macro(macro)
+                cur_code = f"{macro['python_call']}{items}"
+                return cur_code
+            
+        else:
+            if macro['type'] == 'function':
+                # 普通函数调用
+                def macro_method(items):
+                    self.record_macro(macro)
+                    cur_code = f"{macro['python_module']}.{macro['python_call']}({items[0]})"
+                    return cur_code
+            
+            elif macro['type'] == 'static_method':
+                # 静态方法调用
+                def macro_method(items):
+                    self.record_macro(macro)
+                    cur_code = f"{macro['python_module']}.{macro['python_class']}.{macro['python_call']}({items[0]})"
+                    return cur_code
+            elif macro['type'] == 'member_method':
+                # 成员方法调用（有构造函数）
+                def macro_method(items):
+                    self.record_macro(macro)
+                    instance_name = f"{macro['python_class'].lower()}_instance"  # 动态生成类的实例名
+                    cur_code = f"{instance_name} = {macro['python_module']}.{macro['python_class']}({items[0]})\n"
+                    cur_code += f"{instance_name}.{macro['python_call']}()"
+                    return cur_code
+            elif macro['type'] == 'constructor_method':
+                # 成员方法调用（构造函数在外）
+                def macro_method(items):
+                    self.record_macro(macro)
+                    instance_name = f"{macro['python_class'].lower()}_instance"
+                    cur_code = f"{instance_name} = {macro['python_module']}.{macro['python_class']}()\n"
+                    cur_code += f"{instance_name}.{macro['python_call']}({items[0]})"
+                    return cur_code
+                
+        method_name = f"{macro['zpl_macro'].lower()}_macro"
+        setattr(self, method_name, macro_method)
 
     # 向transformer注入函数处理
-    # 问题：是动态地添加方法好？还是静态地添加方法好？
     # 将config中定义的函数载入到字典中
     def load_config(self):
-        with open(self.config_path, 'r', encoding='utf-8') as file:
-            func_list = json.load(file)
-
-        for func in func_list:
-            self.func_list.append(func)
-            if not func['is built-in']:
-                self.not_built_in_func_list.append(func)
-                self.has_not_built_ins = True
+        for filename in os.listdir(self.config_dir):
+            if filename.endswith('.json'):
+                file_path = os.path.join(self.config_dir, filename)
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    config_data = json.load(file)
+                    for macro in config_data.get('macros', []):
+                        self.macro_list.append(macro)
 
     def build_transformer(self):
         self.load_config()
-        for func in self.func_list:
-            if func in self.not_built_in_func_list:
-                self.create_not_built_in_func_method(func['zpl_name'].lower(), func['py_name'])
-            else:
-                self.create_built_in_func_method(func['zpl_name'].lower(), func['py_name'])
+        for macro in self.macro_list:
+            self.create_macro_method(macro)
 
-    
-    def get_called_not_built_in_list(self):
-        called_not_built_in_list = ''
-        for index, func in enumerate(self.called_not_built_in_list):
-            called_not_built_in_list += func
-            if index < len(self.called_not_built_in_list) - 1:
-                called_not_built_in_list += ', '
 
-        return called_not_built_in_list
+    def get_import_code(self):
+        # 遍历self.compiled_macro_list获取macro调用的module，并生成Python的import代码
+        # 存储在macro['python_module']中
+        import_statements = set()
+        for macro in self.compiled_macro_list:
+            python_module = macro.get('python_module')
+            if python_module:
+                import_statements.add(f"import {python_module}")
+
+        return "\n".join(import_statements)
     
 
     """

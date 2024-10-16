@@ -1,0 +1,18 @@
+{
+    "macros": [
+        {
+            "zpl_macro": "ABS",
+            "python_module": "",
+            "python_class": "",
+            "python_call": "abs({args})",
+            "type": "built_in",
+            "return_type": "int",
+            "args": [
+              {
+                "name": "{args}",
+                "type": "int"
+              }
+            ]
+        }
+    ]
+}

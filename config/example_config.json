@@ -1,0 +1,77 @@
+{
+    "macros": [
+      {
+        "zpl_macro": "ADD",
+        "python_module": "example",
+        "python_class": "Calculator",
+        "python_call": "add()",
+        "type": "member_method",
+        "return_type": "double",
+        "constructor_args": [
+        ],
+        "args": [{
+          "name": "{a}",
+          "type": "double"
+        },
+        {
+          "name": "{b}",
+          "type": "double"
+        }]
+      },
+      {
+        "zpl_macro": "SUBTRACT",
+        "python_module": "example",
+        "python_class": "Calculator",
+        "python_call": "subtract()",
+        "type": "member_method",
+        "return_type": "double",
+        "constructor_args": [
+        ],
+        "args": [{
+          "name": "{a}",
+          "type": "double"
+        },
+        {
+          "name": "{b}",
+          "type": "double"
+        }]
+      },
+      {
+        "zpl_macro": "MULTIPLY",
+        "python_module": "example",
+        "python_class": "Calculator",
+        "python_call": "multiply()",
+        "type": "member_method",
+        "return_type": "double",
+        "constructor_args": [
+        ],
+        "args": [{
+          "name": "{a}",
+          "type": "double"
+        },
+        {
+          "name": "{b}",
+          "type": "double"
+        }]
+      },
+      {
+        "zpl_macro": "DIVIDE",
+        "python_module": "example",
+        "python_class": "Calculator",
+        "python_call": "divide()",
+        "type": "member_method",
+        "return_type": "double",
+        "constructor_args": [
+          
+        ],
+        "args": [{
+          "name": "{a}",
+          "type": "double"
+        },
+        {
+          "name": "{b}",
+          "type": "double"
+        }]
+      }
+    ]
+  }

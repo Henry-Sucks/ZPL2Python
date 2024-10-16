@@ -1,6 +1,9 @@
-from mylib import a, c
+import example
 x = 1
 y = 2
-print(abs(x), pow(x, y))
-print(a(x, y), c(x, y))
+print(calculator_instance = example.Calculator(x, y)
+calculator_instance.add()(), calculator_instance = example.Calculator(x, y)
+calculator_instance.subtract()(), calculator_instance = example.Calculator(x, y)
+calculator_instance.multiply()(), calculator_instance = example.Calculator(x, y)
+calculator_instance.divide()())
 

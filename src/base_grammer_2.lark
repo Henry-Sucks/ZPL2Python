@@ -68,7 +68,7 @@ sub_exp: LEFTPAREN expression RIGHTPAREN
 
 value: num
         | string
-        | func_ret
+        | macro_ret
         | id_val
 
 num: SIGNED_NUMBER
@@ -124,3 +124,17 @@ ELSE: "ELSE"
 %ignore WS
 %ignore NEWLINE
 %ignore COMMENT
+
+
+//// 宏返回值
+macro_ret: abs_macro
+	| add_macro
+	| subtract_macro
+	| multiply_macro
+	| divide_macro
+
+abs_macro: "ABS" "(" expression_list ")"
+add_macro: "ADD" "(" expression_list ")"
+subtract_macro: "SUBTRACT" "(" expression_list ")"
+multiply_macro: "MULTIPLY" "(" expression_list ")"
+divide_macro: "DIVIDE" "(" expression_list ")"
