@@ -3,16 +3,9 @@
         {
             "zpl_macro": "ABS",
             "python_module": "",
-            "python_class": "",
-            "python_call": "abs({args})",
-            "type": "built_in",
-            "return_type": "int",
-            "args": [
-              {
-                "name": "{args}",
-                "type": "int"
-              }
-            ]
+            "usage": "print('Hello world')\n<return_var1> = abs(<x>)\n",
+            "args": ["x"],
+            "res": ["return_var1"]
         }
     ]
 }

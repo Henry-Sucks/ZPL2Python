@@ -1,69 +1,8 @@
 from lark import Transformer
 import json
 import os
+from .ind_tree_node import IndTreeNode
 
-class IndTreeNode:
-        def  __init__(self, value):
-            self.code = ""
-            self.value = value
-            self.children = []
-
-            # 为什么是-1？因为top_node是一个空节点，需要耗费一次层数
-            self.level = -1
-            
-
-        def add_child(self, child_node):
-            self.children.append(child_node)
-
-        def set_children(self, items):
-            if isinstance(items, list):
-                for item in items:
-                    self.set_children(item)
-            elif isinstance(items, IndTreeNode):
-                    self.add_child(items)
-
-
-        def set_value(self, value):
-            self.value = value
-
-        def get_children(self):
-            return self.children
-        
-        def get_indentation(self):
-            cur_indentation = ""
-            for i in range(self.level):
-                cur_indentation += "\t"
-
-            return cur_indentation
-        
-        
-        def dfs(self, cur_level):
-            # 访问当前节点
-            ## 将缩进+value中代码放入value中
-            ## 增加缩进层数
-            self.level = cur_level
-            self.value = f"{self.get_indentation()}{self.value}"
-            self.level += 1
-
-
-            ## 遍历子节点，加上子节点返回的代码
-            for child in self.children:
-                
-                self.value += child.dfs(self.level)
-
-            return self.value
-        
-        def build_code(self):
-            self.code = self.dfs(self.level)
-            return
-        
-        def get_code(self):
-            return self.code
-            
-            
-        def __repr__(self):
-            children_repr = ', '.join(repr(child) for child in self.children)
-            return f"IndTreeNode(\"{self.value}\", [{children_repr}])"
         
 
 class ZPLTransformer(Transformer):
@@ -80,24 +19,24 @@ class ZPLTransformer(Transformer):
     """
     value：数字、变量名、函数调用、字符串
     """ 
+    def value(self, item):
+        return item[0]
+
     def num(self, n):
-        return n[0]
+        return {"type": "num","content": n[0]}
     
     def string(self, str):
         str = str[0][1:-1]
-        return f"\"{str}\""
+        return {"type": "string","content": f"\"{str}\""}
     
     def id_def(self, id):
-        return id[0]
+        return {"type": "id_def","content": id[0]}
     
     def id_val(self, id):
-        return id[0]
-    
-    def value(self, item):
-        return item[0]
+        return {"type": "id_val","content": id[0]}
     
     def macro_ret(self, items):
-        return items[0]
+        return {"type": "macro_ret","content": items}
     
     """
     表达式
@@ -111,7 +50,7 @@ class ZPLTransformer(Transformer):
     
     def negate_exp(self, items):
         if(len(items) == 2):
-            return(f"-{items[0]}")
+            return(f"-{items[1]}")
         else:
             return(items[0])
             
@@ -297,85 +236,54 @@ class ZPLTransformer(Transformer):
     """
     宏处理
     """
-    # def abso_func(self, items):
-    #     cur_code = "abs"
-    #     cur_code += f"({items[0]})"
-    #     return cur_code
-
-    # def a_func(self, items):
-    #     cur_code = "a"
-    #     cur_code += f"({items[0]})"
-    #     if py_name not in self.called_not_built_in_list:
-    #         self.called_not_built_in_list.append(py_name)
-    #     self.called_has_not_built_in = True
-    #     return cur_code
-    
-    # def create_built_in_func_method(self, zpl_name, py_name):
-    #     def func_method(items):
-    #         cur_code = py_name
-    #         cur_code += f"({items[0]})"
-    #         return cur_code
-        
-    #     method_name = f"{zpl_name}_func"
-    #     setattr(self, method_name, func_method)
-
-    # def create_not_built_in_func_method(self, zpl_name, py_name):
-    #     def func_method(items):
-    #         cur_code = py_name
-    #         cur_code += f"({items[0]})"
-    #         if py_name not in self.called_not_built_in_list:
-    #             self.called_not_built_in_list.append(py_name)
-    #         self.called_has_not_built_in = True
-    #         return cur_code
-        
-    #     method_name = f"{zpl_name}_func"
-    #     setattr(self, method_name, func_method)
 
     def record_macro(self, macro):
         if macro not in self.compiled_macro_list:
             self.compiled_macro_list.append(macro)
 
-    def create_macro_method(self, macro):
-        if macro['type'] == 'built_in':
-            # Python内部实现调用
-            def macro_method(items):
-                self.record_macro(macro)
-                cur_code = f"{macro['python_call']}{items}"
-                return cur_code
+    # def create_macro_method(self, macro):
+
+
+        # if macro['type'] == 'built_in':
+        #     # Python内部实现调用
+        #     def macro_method(items):
+        #         self.record_macro(macro)
+        #         cur_code = f"{macro['python_call']}{items}"
+        #         return cur_code
             
-        else:
-            if macro['type'] == 'function':
-                # 普通函数调用
-                def macro_method(items):
-                    self.record_macro(macro)
-                    cur_code = f"{macro['python_module']}.{macro['python_call']}({items[0]})"
-                    return cur_code
+        # else:
+        #     if macro['type'] == 'function':
+        #         # 普通函数调用
+        #         def macro_method(items):
+        #             self.record_macro(macro)
+        #             cur_code = f"{macro['python_module']}.{macro['python_call']}({items[0]})"
+        #             return cur_code
             
-            elif macro['type'] == 'static_method':
-                # 静态方法调用
-                def macro_method(items):
-                    self.record_macro(macro)
-                    cur_code = f"{macro['python_module']}.{macro['python_class']}.{macro['python_call']}({items[0]})"
-                    return cur_code
-            elif macro['type'] == 'member_method':
-                # 成员方法调用（有构造函数）
-                def macro_method(items):
-                    self.record_macro(macro)
-                    instance_name = f"{macro['python_class'].lower()}_instance"  # 动态生成类的实例名
-                    cur_code = f"{instance_name} = {macro['python_module']}.{macro['python_class']}({items[0]})\n"
-                    cur_code += f"{instance_name}.{macro['python_call']}()"
-                    return cur_code
-            elif macro['type'] == 'constructor_method':
-                # 成员方法调用（构造函数在外）
-                def macro_method(items):
-                    self.record_macro(macro)
-                    instance_name = f"{macro['python_class'].lower()}_instance"
-                    cur_code = f"{instance_name} = {macro['python_module']}.{macro['python_class']}()\n"
-                    cur_code += f"{instance_name}.{macro['python_call']}({items[0]})"
-                    return cur_code
+        #     elif macro['type'] == 'static_method':
+        #         # 静态方法调用
+        #         def macro_method(items):
+        #             self.record_macro(macro)
+        #             cur_code = f"{macro['python_module']}.{macro['python_class']}.{macro['python_call']}({items[0]})"
+        #             return cur_code
+        #     elif macro['type'] == 'member_method':
+        #         # 成员方法调用（有构造函数）
+        #         def macro_method(items):
+        #             self.record_macro(macro)
+        #             instance_name = f"{macro['python_class'].lower()}_instance"  # 动态生成类的实例名
+        #             cur_code = f"{instance_name} = {macro['python_module']}.{macro['python_class']}({items[0]})\n"
+        #             cur_code += f"{instance_name}.{macro['python_call']}()"
+        #             return cur_code
+        #     elif macro['type'] == 'constructor_method':
+        #         # 成员方法调用（构造函数在外）
+        #         def macro_method(items):
+        #             self.record_macro(macro)
+        #             instance_name = f"{macro['python_class'].lower()}_instance"
+        #             cur_code = f"{instance_name} = {macro['python_module']}.{macro['python_class']}()\n"
+        #             cur_code += f"{instance_name}.{macro['python_call']}({items[0]})"
+        #             return cur_code
                 
-        method_name = f"{macro['zpl_macro'].lower()}_macro"
-        setattr(self, method_name, macro_method)
+        # method_name = f"{macro['zpl_macro'].lower()}_macro"
+        # setattr(self, method_name, macro_method)
 
     # 向transformer注入函数处理
     # 将config中定义的函数载入到字典中
@@ -388,10 +296,10 @@ class ZPLTransformer(Transformer):
                     for macro in config_data.get('macros', []):
                         self.macro_list.append(macro)
 
-    def build_transformer(self):
-        self.load_config()
-        for macro in self.macro_list:
-            self.create_macro_method(macro)
+    # def build_transformer(self):
+    #     self.load_config()
+    #     for macro in self.macro_list:
+    #         self.create_macro_method(macro)
 
 
     def get_import_code(self):
