@@ -1,8 +1,9 @@
 from lark import Transformer
 import json
 import os
-from .ind_tree_node import IndTreeNode
-from .tools import error_handler, print_to_file
+from ind_tree_node import IndTreeNode
+from tools import error_handler
+import config
 
 class Symbol:
     def __init__(self, symbol_type, element_type=None, value=None, dimensions=None, code=None):
@@ -105,6 +106,9 @@ def process_temp_var_name(var_list):
     return temp_vars
 
 
+
+
+
 class ZPLTransformer(Transformer):
     def __init__(self, config_dir):
         self.vars = {}
@@ -190,13 +194,150 @@ class ZPLTransformer(Transformer):
     """
     表达式
     """ 
+    def evaluate_expression_type(self, operator, *types):
+        """
+        根据运算符和操作数类型，评估表达式的结果类型以及是否出错。
+        如果出错，调用error_handler函数处理错误。
+        参数:
+        - operator: 包括一元和二元运算符，如 '+'、'-'、'*'、'/' 等。
+        - *types: 操作EXP的类型，可以是一个或两个。可以是"INT"，"DOUBLE"，"STRING"
+
+        返回:
+        - result_type: 表达式的结果类型。
+        - error: 是否出错，True 表示出错，False 表示没有出错。
+        """
+
+        # 定义运算符的类型检查规则
+        type_rules = {
+            # 二元运算符
+            '+': {
+                ("INT", "INT"): "INT",
+                ("DOUBLE", "DOUBLE"): "DOUBLE",
+                ("INT", "DOUBLE"): "DOUBLE",
+                ("DOUBLE", "INT"): "DOUBLE",
+                ("STRING", "STRING"): "STRING",
+            },
+            '-': {
+                ("INT", "INT"): "INT",
+                ("DOUBLE", "DOUBLE"): "DOUBLE",
+                ("INT", "DOUBLE"): "DOUBLE",
+                ("DOUBLE", "INT"): "DOUBLE",
+            },
+            '*': {
+                ("INT", "INT"): "INT",
+                ("DOUBLE", "DOUBLE"): "DOUBLE",
+                ("INT", "DOUBLE"): "DOUBLE",
+                ("DOUBLE", "INT"): "DOUBLE",
+            },
+            '/': {
+                ("INT", "INT"): "DOUBLE",
+                ("DOUBLE", "DOUBLE"): "DOUBLE",
+                ("INT", "DOUBLE"): "DOUBLE",
+                ("DOUBLE", "INT"): "DOUBLE",
+            },
+            '&': {
+                ("INT", "INT"): "INT",
+                ("DOUBLE", "DOUBLE"): "INT",
+                ("INT", "DOUBLE"): "INT",
+                ("DOUBLE", "INT"): "INT",
+            },
+            '|': {
+                ("INT", "INT"): "INT",
+                ("DOUBLE", "DOUBLE"): "INT",
+                ("INT", "DOUBLE"): "INT",
+                ("DOUBLE", "INT"): "INT",
+            },
+            '^': {
+                ("INT", "INT"): "INT",
+                ("DOUBLE", "DOUBLE"): "INT",
+                ("INT", "DOUBLE"): "INT",
+                ("DOUBLE", "INT"): "INT",
+            },
+            '<': {
+                ("INT", "INT"): "INT",
+                ("DOUBLE", "DOUBLE"): "INT",
+                ("INT", "DOUBLE"): "INT",
+                ("DOUBLE", "INT"): "INT",
+            },
+            '>': {
+                ("INT", "INT"): "INT",
+                ("DOUBLE", "DOUBLE"): "INT",
+                ("INT", "DOUBLE"): "INT",
+                ("DOUBLE", "INT"): "INT",
+            },
+            '==': {
+                ("INT", "INT"): "INT",
+                ("DOUBLE", "DOUBLE"): "INT",
+                ("INT", "DOUBLE"): "INT",
+                ("DOUBLE", "INT"): "INT",
+            },
+            '!=': {
+                ("INT", "INT"): "INT",
+                ("DOUBLE", "DOUBLE"): "INT",
+                ("INT", "DOUBLE"): "INT",
+                ("DOUBLE", "INT"): "INT",
+            },
+            '<=': {
+                ("INT", "INT"): "INT",
+                ("DOUBLE", "DOUBLE"): "INT",
+                ("INT", "DOUBLE"): "INT",
+                ("DOUBLE", "INT"): "INT",
+            },
+            '>=': {
+                ("INT", "INT"): "INT",
+                ("DOUBLE", "DOUBLE"): "INT",
+                ("INT", "DOUBLE"): "INT",
+                ("DOUBLE", "INT"): "INT",
+            },
+            '$<': {
+                ("STRING", "STRING"): "INT",
+            },
+            '$>': {
+                ("STRING", "STRING"): "INT",
+            },
+            '$==': {
+                ("STRING", "STRING"): "INT",
+            },
+            '$!=': {
+                ("STRING", "STRING"): "INT",
+            },
+            '$<=': {
+                ("STRING", "STRING"): "INT",
+            },
+            '$>=': {
+                ("STRING", "STRING"): "INT",
+            },
+            # 一元运算符
+            '!': {
+                ("INT"): "INT",
+                ("DOUBLE"): "DOUBLE"
+            },
+            '-': {
+                ("INT"): "INT",
+                ("DOUBLE"): "DOUBLE"
+            },
+        }
+
+        # 获取运算符的类型检查规则
+        rules = type_rules.get(operator, {})
+
+        # 检查是否存在对应的类型规则
+        if types in rules:
+            result_type = rules[types]
+        else:
+            error_handler("Type mismatch in expression")
+
+        return result_type
+
     def sub_exp(self, items):
         symbol = Symbol("EXP")
         if(len(items) == 3):
+            # 括号的情况
+            symbol.element_type = items[1].element_type
             symbol.value = f"({items[1].value})"
             symbol.code = concat_code_segments([items[1].code])
-            # 括号的情况
         else:
+            symbol.element_type = items[0].element_type
             symbol.value = items[0].value
             symbol.code = items[0].code
         return symbol
@@ -204,9 +345,11 @@ class ZPLTransformer(Transformer):
     def negate_exp(self, items):
         symbol = Symbol("EXP")
         if(len(items) == 2):
+            symbol.element_type = self.evaluate_expression_type(items[0], items[1].element_type)
             symbol.value = f"-{items[1].value}"
             symbol.code = concat_code_segments([items[1].code])
         else:
+            symbol.element_type = items[0].element_type
             symbol.value = items[0].value
             symbol.code = items[0].code
         return symbol
@@ -215,65 +358,85 @@ class ZPLTransformer(Transformer):
     def mult_exp(self, items):
         symbol = Symbol("EXP")
         if(len(items) == 1):
+            symbol.element_type = items[0].element_type
             symbol.value = items[0].value
             symbol.code = items[0].code
         else:
-            if(items[1] == "*"):
-                symbol.value = f"{items[0].value} * {items[2].value}"
-                symbol.code = concat_code_segments([items[0].code, items[2].code])
-            elif(items[1] == "/"):
-                symbol.value = f"{items[0].value} / {items[2].value}"
-                symbol.code = concat_code_segments([items[0].code, items[2].code])
+            symbol.element_type = self.evaluate_expression_type(items[1], items[0].element_type, items[2].element_type)
+            symbol.value = f"{items[0].value} {items[1]} {items[2].value}"
+            symbol.code = concat_code_segments([items[0].code, items[2].code])
+            # if(items[1] == "*"):
+            #     symbol.value = f"{items[0].value} * {items[2].value}"
+            #     symbol.code = concat_code_segments([items[0].code, items[2].code])
+            # elif(items[1] == "/"):
+            #     symbol.value = f"{items[0].value} / {items[2].value}"
+            #     symbol.code = concat_code_segments([items[0].code, items[2].code])
         return symbol
 
     
     def add_exp(self, items):
         symbol = Symbol("EXP")
         if(len(items) == 1):
+            symbol.element_type = items[0].element_type
             symbol.value = items[0].value
             symbol.code = items[0].code
         else:
-            if(items[1] == "+"):
-                symbol.value = f"{items[0].value} + {items[2].value}"
-                symbol.code = concat_code_segments([items[0].code, items[2].code])
-            elif(items[1] == "-"):
-                symbol.value = f"{items[0].value} - {items[2].value}"
-                symbol.code = concat_code_segments([items[0].code, items[2].code])
+            symbol.element_type = self.evaluate_expression_type(items[1], items[0].element_type, items[2].element_type)
+            symbol.value = f"{items[0].value} {items[1]} {items[2].value}"
+            symbol.code = concat_code_segments([items[0].code, items[2].code])
+            # if(items[1] == "+"):
+            #     symbol.value = f"{items[0].value} + {items[2].value}"
+            #     symbol.code = concat_code_segments([items[0].code, items[2].code])
+            # elif(items[1] == "-"):
+            #     symbol.value = f"{items[0].value} - {items[2].value}"
+            #     symbol.code = concat_code_segments([items[0].code, items[2].code])
         return symbol
     
     def comp_exp(self, items):
         symbol = Symbol("EXP")
         if(len(items) == 1):
+            symbol.element_type = items[0].element_type
             symbol.value = items[0].value
             symbol.code = items[0].code
         else:
-            if(items[1] == "=="):
-                symbol.value = f"{items[0].value} == {items[2].value}"
-                symbol.code = concat_code_segments([items[0].code, items[2].code])
-            elif(items[1] == "<="):
-                symbol.value = f"{items[0].value} <= {items[2].value}"
-                symbol.code = concat_code_segments([items[0].code, items[2].code])
-            elif(items[1] == ">="):
-                symbol.value = f"{items[0].value} >= {items[2].value}"
-                symbol.code = concat_code_segments([items[0].code, items[2].code])
-            elif(items[1] == "!="):
-                symbol.value = f"{items[0].value} != {items[2].value}"
-                symbol.code = concat_code_segments([items[0].code, items[2].code])
-            elif(items[1] == "<"):
-                symbol.value = f"{items[0].value} < {items[2].value}"
-                symbol.code = concat_code_segments([items[0].code, items[2].code])
-            elif(items[1] == ">"):
-                symbol.value = f"{items[0].value} > {items[2].value}"
-                symbol.code = concat_code_segments([items[0].code, items[2].code])
+            symbol.element_type = self.evaluate_expression_type(items[1], items[0].element_type, items[2].element_type)
+            symbol.value = f"{items[0].value} {items[1]} {items[2].value}"
+            symbol.code = concat_code_segments([items[0].code, items[2].code])
+            # if(items[1] == "=="):
+            #     symbol.value = f"{items[0].value} == {items[2].value}"
+            #     symbol.code = concat_code_segments([items[0].code, items[2].code])
+                
+            # elif(items[1] == "<="):
+            #     symbol.value = f"{items[0].value} <= {items[2].value}"
+            #     symbol.code = concat_code_segments([items[0].code, items[2].code])
+                
+            # elif(items[1] == ">="):
+            #     symbol.value = f"{items[0].value} >= {items[2].value}"
+            #     symbol.code = concat_code_segments([items[0].code, items[2].code])
+                
+            # elif(items[1] == "!="):
+            #     symbol.value = f"{items[0].value} != {items[2].value}"
+            #     symbol.code = concat_code_segments([items[0].code, items[2].code])
+                
+            # elif(items[1] == "<"):
+            #     symbol.value = f"{items[0].value} < {items[2].value}"
+            #     symbol.code = concat_code_segments([items[0].code, items[2].code])
+                
+            # elif(items[1] == ">"):
+            #     symbol.value = f"{items[0].value} > {items[2].value}"
+            #     symbol.code = concat_code_segments([items[0].code, items[2].code])
+                
         return symbol
             
     
     def not_exp(self, items):
         symbol = Symbol("EXP")
         if(len(items) == 1):
+            symbol.element_type = items[0].element_type
             symbol.value = items[0].value
             symbol.code = items[0].code
         else:
+            symbol.element_type = self.evaluate_expression_type("!", items[1].element_type)
             symbol.value = f"!{items[1]}"
             symbol.code = items[1].code
         
@@ -283,18 +446,22 @@ class ZPLTransformer(Transformer):
         # TODO: 处理短路计算
         symbol = Symbol("EXP")
         if len(items) == 1:
+            symbol.element_type = items[0].element_type
             symbol.value = items[0].value
             symbol.code = items[0].code
         else:
-            if(items[1] == "&"):
-                symbol.value = f"{items[0].value} and {items[2].value}"
-                symbol.code = concat_code_segments([items[0].code, items[2].code])
-            elif(items[1] == "|"):
-                symbol.value = f"{items[0].value} or {items[2].value}"
-                symbol.code = concat_code_segments([items[0].code, items[2].code])
-            elif(items[1] == "^"):
-                symbol.value = f"{items[0].value} xor {items[2].value}"
-                symbol.code = concat_code_segments([items[0].code, items[2].code])
+            symbol.element_type = self.evaluate_expression_type(items[1], items[0].element_type, items[2].element_type)
+            symbol.value = f"{items[0].value} {items[1]} {items[2].value}"
+            symbol.code = concat_code_segments([items[0].code, items[2].code])
+            # if(items[1] == "&"):
+            #     symbol.value = f"{items[0].value} and {items[2].value}"
+            #     symbol.code = concat_code_segments([items[0].code, items[2].code])
+            # elif(items[1] == "|"):
+            #     symbol.value = f"{items[0].value} or {items[2].value}"
+            #     symbol.code = concat_code_segments([items[0].code, items[2].code])
+            # elif(items[1] == "^"):
+            #     symbol.value = f"{items[0].value} xor {items[2].value}"
+            #     symbol.code = concat_code_segments([items[0].code, items[2].code])
 
         return symbol
     
@@ -320,9 +487,12 @@ class ZPLTransformer(Transformer):
     def assign_stmt(self, items):
         # TODO: 如果是一般变量，则直接赋值，没有重复定义以及数据类型检查
         # TODO: 如果是数组名称，不允许直接赋值，一律报错
-        # TODO: 如果是数组元素，则检查数组是否存在，类型是否正确，以及索引是否合法，
+        # TODO: 如果是数组元素，则检查数组是否存在，类型是否正确，以及索引是否合法
+        # TODO: 如果是宏调用
         # print(items)
         # 一般变量
+
+        print(items)
         
 
 
@@ -467,7 +637,7 @@ class ZPLTransformer(Transformer):
 
 
         # TODO: 让加载macro_dict更加自动化
-        with open(r"macros\macro_dict.json", 'r', encoding='utf-8') as file:
+        with open(config.macro_path, 'r', encoding='utf-8') as file:
             macro_dict = json.load(file)
 
         macro_def = macro_dict.get(macro_name)
@@ -479,7 +649,7 @@ class ZPLTransformer(Transformer):
             # 完成param的类型判断
             # 将param_list注入到macros.json中macro_name对应条目的code中
             for i, param in enumerate(param_list):
-                if param.type != macro_def['input'][i]['type']:
+                if param.element_type != macro_def['input'][i]['type']:
                     error_handler("Parameter type mismatch")
                 code = code.replace(f'{{{{{macro_def["input"][i]['name']}}}}}', str(param.value))
 
@@ -496,7 +666,7 @@ class ZPLTransformer(Transformer):
             code_list.append(code)
 
             # output的类型记录
-            macro_symbol.type = macro_def['output'][0]['type']
+            macro_symbol.element_type = macro_def['output'][0]['type']
 
             # 将code_list作为macro_symbol.code
             macro_symbol.code = code_list

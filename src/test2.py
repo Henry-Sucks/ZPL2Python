@@ -1,9 +1,10 @@
 from lark import Lark
-from src.transformer import ZPLTransformer
+from transformer import ZPLTransformer
+import config as config
 
 
 config_path = 'config'
-base_grammar_path = './src/base_grammer_1.lark'
+base_grammar_path = config.grammar_path
 
 # loader = MacroLoader(config_path, base_grammar_path)
 # loader.load_config()

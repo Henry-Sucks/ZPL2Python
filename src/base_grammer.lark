@@ -62,13 +62,21 @@ macro_id: IDENTIFIER
 
 not_exp: NOT comp_exp
         | comp_exp
+
 comp_exp: add_exp EQUAL  comp_exp 
         | add_exp NOTEQUAL comp_exp 
         | add_exp GREATER  comp_exp 
         | add_exp GREATEQUAL comp_exp 
         | add_exp LESSER  comp_exp 
-        | add_exp LESSEQUAL comp_exp 
+        | add_exp LESSEQUAL comp_exp
+        | add_exp STRING_EQUAL comp_exp
+        | add_exp STRING_NOTEQUAL comp_exp 
+        | add_exp STRING_GREATER  comp_exp 
+        | add_exp STRING_GREATEQUAL comp_exp 
+        | add_exp STRING_LESSER  comp_exp
+        | add_exp STRING_LESSEQUAL comp_exp
         | add_exp
+
 add_exp: mult_exp PLUS add_exp
         | mult_exp MINUS add_exp
         | mult_exp 
@@ -104,25 +112,36 @@ COMMENT: "!" /[^\n]*/ | "REM" /[^\n]*/ | HASH /[^\n]*/
 ASSIGNOP: "="
 LEFTPAREN: "("
 RIGHTPAREN: ")"
+
 PLUS: "+"
 MINUS: "-"
 TIMES: "*"
 DIVIDE: "/"
+
+AND: "&"
+OR: "|"
+XOR: "^"
+NOT: "!"
 LESSER: "<"
 GREATER: ">"
 EQUAL: "=="
 NOTEQUAL: "!="
 LESSEQUAL: "<="
 GREATEQUAL: ">="
+
+STRING_LESSER: "$<"
+STRING_GREATER: "$>"
+STRING_EQUAL: "$=="
+STRING_NOTEQUAL: "$!="
+STRING_LESSEQUAL: "$<="
+STRING_GREATEQUAL: "$>="
+
 COMMA: ","
 COLON: ":"
 MODULO: "%"
 HASH: "#"
 SEMICOLON: ";"
-AND: "&"
-OR: "|"
-XOR: "^"
-NOT: "!"
+
 
 DOUBLE: "DOUBLE"
 INTEGER: "INTEGER"
