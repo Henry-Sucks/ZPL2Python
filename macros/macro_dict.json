@@ -1,0 +1,38 @@
+{
+    "FIELD": {
+        "zpl_name": "FIELD",
+        "python_name": "field",
+        "built_in": false,
+        "input": [
+            "field_num"
+        ],
+        "temp_vars": [
+            "api",
+            "pro1",
+            "field_data"
+        ],
+        "output": [
+            "field_data"
+        ],
+        "import": [
+            "example"
+        ],
+        "code": "import example\n{{api}} = example.CSeeodAPI()\n{{pro1}} = {{api}}.get_field()\n{{field_data}} = {{api}}.get_field_data({{pro1}}, {{field_num}})\nreturn {{field_data}}"
+    },
+    "ABS": {
+        "zpl_name": "ABS",
+        "python_name": "abs",
+        "built_in": true,
+        "input": [
+            "num"
+        ],
+        "output": [
+            "abs_num"
+        ],
+        "temp_vars": [
+            "result"
+        ],
+        "import": [],
+        "code": "{{temp_vars[0]}} = abs({{input[0]}})\nreturn {{temp_vars[0]}}"
+    }
+}

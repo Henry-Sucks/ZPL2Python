@@ -2,7 +2,7 @@ from lark import Transformer
 import json
 import os
 from .ind_tree_node import IndTreeNode
-from .tools import error_handler
+from .tools import error_handler, print_to_file
 
 class Symbol:
     def __init__(self, symbol_type, element_type=None, value=None, dimensions=None, code=None):
@@ -66,7 +66,8 @@ def is_int(num):
         return True
     except ValueError:
         return False
-    
+
+# 将子节点的code根据先后顺序拼接到一起
 def concat_code_segments(segments):
     result = []
     for segment in segments:
@@ -79,6 +80,29 @@ def concat_code_segments(segments):
     
     # 使用 '\n' 拼接所有非 None 的片段
     return '\n'.join(result)
+
+def process_temp_var_name(var_list):
+    """
+    将临时变量名进行处理，生成运行时临时变量名。
+
+    参数:
+    var_list (list): 包含原始临时变量名的列表。
+
+    返回:
+    dict: 包含原始临时变量名和对应运行时临时变量名的字典。
+
+    示例:
+    输入: ['api', 'pro1']
+    输出: {'api': 'api_1a2b3c4d', 'pro1': 'pro1_5e6f7g8h'}
+
+    实现细节:
+    1. 使用 uuid.uuid4().hex 生成唯一的随机字符串。
+    2. 将原始临时变量名与生成的随机字符串组合，生成新的运行时临时变量名。
+    3. 返回一个字典，键为原始临时变量名，值为对应的运行时临时变量名。
+    """
+    import uuid
+    temp_vars = {var: f'{var}_{uuid.uuid4().hex}' for var in var_list}
+    return temp_vars
 
 
 class ZPLTransformer(Transformer):
@@ -200,6 +224,7 @@ class ZPLTransformer(Transformer):
             elif(items[1] == "/"):
                 symbol.value = f"{items[0].value} / {items[2].value}"
                 symbol.code = concat_code_segments([items[0].code, items[2].code])
+        return symbol
 
     
     def add_exp(self, items):
@@ -240,7 +265,7 @@ class ZPLTransformer(Transformer):
             elif(items[1] == ">"):
                 symbol.value = f"{items[0].value} > {items[2].value}"
                 symbol.code = concat_code_segments([items[0].code, items[2].code])
-            return symbol
+        return symbol
             
     
     def not_exp(self, items):
@@ -255,30 +280,36 @@ class ZPLTransformer(Transformer):
         return symbol
     
     def expression(self, items):
-        cur_code = ""
+        # TODO: 处理短路计算
+        symbol = Symbol("EXP")
         if len(items) == 1:
-            cur_code = items[0]
+            symbol.value = items[0].value
+            symbol.code = items[0].code
         else:
             if(items[1] == "&"):
-                cur_code = (f"{items[0]} and {items[2]}")
+                symbol.value = f"{items[0].value} and {items[2].value}"
+                symbol.code = concat_code_segments([items[0].code, items[2].code])
             elif(items[1] == "|"):
-                cur_code = (f"{items[0]} or {items[2]}")
+                symbol.value = f"{items[0].value} or {items[2].value}"
+                symbol.code = concat_code_segments([items[0].code, items[2].code])
             elif(items[1] == "^"):
-                cur_code = (f"({items[0]} or {items[2]}) and not ({items[0]} and {items[2]})")
+                symbol.value = f"{items[0].value} xor {items[2].value}"
+                symbol.code = concat_code_segments([items[0].code, items[2].code])
 
-        return cur_code
+        return symbol
     
     def expression_list(self, items):
-        list_code = ""
+        # 返回列表中EXP的symbol
+        symbol_list = []
         if len(items) == 0:
             return None
-        list_code = items[0]
+        symbol_list.append(items[0])
 
         if(len(items) == 1):
             pass
         else:
-            list_code = f"{list_code}, {items[1]}"
-        return list_code
+            symbol_list.extend(items[1:])
+        return symbol_list
 
 
 
@@ -427,8 +458,46 @@ class ZPLTransformer(Transformer):
     宏处理
     """
     def macro_call(self, items):
-        print(items)
-        return {'type': 'MACRO', 'value': 'res', 'code': items[0]}
+        # TODO: param的类型判断
+        # TODO: output的类型记录
+        macro_name = items[0]
+        exp_list = items[1]
+        param_list = [exp.value for exp in exp_list]
+        code_list = [exp.code for exp in exp_list]
+        macro_symbol = Symbol('MACRO')
+
+
+        # TODO: 让加载macro_dict更加自动化
+        with open("macros\macro_dict.json", 'r', encoding='utf-8') as file:
+            macro_dict = json.load(file)
+
+        macro_def = macro_dict.get(macro_name)
+
+        if macro_def:
+            temp_vars = process_temp_var_name(macro_def['temp_vars'])
+            code = macro_def['code']
+
+            # 将param_list注入到macros.json中macro_name对应条目的code中
+            for i, param in enumerate(param_list):
+                code = code.replace(f'{{{{{macro_def["input"][i]}}}}}', str(param))
+
+            # 将temp_vars注入到macros.json中macro_name对应条目的code中
+            for temp_var in temp_vars:
+                code = code.replace(f'{{{{{temp_var}}}}}', temp_vars[temp_var])
+            
+            # 将返回值赋值给macro_symbol.value
+            # TODO: 是否考虑多返回值的情况？
+            output_vars = temp_vars[macro_def['output'][0]]
+            macro_symbol.value = output_vars
+
+            # 向code_list中末尾添加先前修改后的code
+            code_list.append(code)
+
+            # 将code_list作为macro_symbol.code
+            macro_symbol.code = code_list
+        
+        return macro_symbol
+            
     
     def macro_id(self, items):
         return (items[0].value)

@@ -1,3 +1,3 @@
-x = array[i, 3+3, HELLO(0)]
+x = FIELD(2)
 
 
