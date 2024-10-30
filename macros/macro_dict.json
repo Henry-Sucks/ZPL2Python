@@ -4,7 +4,10 @@
         "python_name": "field",
         "built_in": false,
         "input": [
-            "field_num"
+            {
+                "name": "field_num",
+                "type": "INT"
+            }
         ],
         "temp_vars": [
             "api",
@@ -12,7 +15,10 @@
             "field_data"
         ],
         "output": [
-            "field_data"
+            {
+                "name": "field_data",
+                "type": "DOUBLE"
+            }
         ],
         "import": [
             "example"
@@ -24,10 +30,16 @@
         "python_name": "abs",
         "built_in": true,
         "input": [
-            "num"
+            {
+                "name": "num",
+                "type": "DOUBLE"
+            }
         ],
         "output": [
-            "abs_num"
+            {
+                "name": "abs_num",
+                "type": "DOUBLE"
+            }
         ],
         "temp_vars": [
             "result"

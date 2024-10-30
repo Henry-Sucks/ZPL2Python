@@ -458,11 +458,10 @@ class ZPLTransformer(Transformer):
     宏处理
     """
     def macro_call(self, items):
-        # TODO: param的类型判断
-        # TODO: output的类型记录
+
         macro_name = items[0]
         exp_list = items[1]
-        param_list = [exp.value for exp in exp_list]
+        param_list = exp_list
         code_list = [exp.code for exp in exp_list]
         macro_symbol = Symbol('MACRO')
 
@@ -477,9 +476,12 @@ class ZPLTransformer(Transformer):
             temp_vars = process_temp_var_name(macro_def['temp_vars'])
             code = macro_def['code']
 
+            # 完成param的类型判断
             # 将param_list注入到macros.json中macro_name对应条目的code中
             for i, param in enumerate(param_list):
-                code = code.replace(f'{{{{{macro_def["input"][i]}}}}}', str(param))
+                if param.type != macro_def['input'][i]['type']:
+                    error_handler("Parameter type mismatch")
+                code = code.replace(f'{{{{{macro_def["input"][i]['name']}}}}}', str(param.value))
 
             # 将temp_vars注入到macros.json中macro_name对应条目的code中
             for temp_var in temp_vars:
@@ -487,11 +489,14 @@ class ZPLTransformer(Transformer):
             
             # 将返回值赋值给macro_symbol.value
             # TODO: 是否考虑多返回值的情况？
-            output_vars = temp_vars[macro_def['output'][0]]
+            output_vars = temp_vars[macro_def['output'][0]['name']]
             macro_symbol.value = output_vars
 
             # 向code_list中末尾添加先前修改后的code
             code_list.append(code)
+
+            # output的类型记录
+            macro_symbol.type = macro_def['output'][0]['type']
 
             # 将code_list作为macro_symbol.code
             macro_symbol.code = code_list
@@ -501,40 +506,6 @@ class ZPLTransformer(Transformer):
     
     def macro_id(self, items):
         return (items[0].value)
-
-    def record_macro(self, macro):
-        if macro not in self.compiled_macro_list:
-            self.compiled_macro_list.append(macro)
-
-
-    # 向transformer注入函数处理
-    # 将config中定义的函数载入到字典中
-    def load_config(self):
-        for filename in os.listdir(self.config_dir):
-            if filename.endswith('.json'):
-                file_path = os.path.join(self.config_dir, filename)
-                with open(file_path, 'r', encoding='utf-8') as file:
-                    config_data = json.load(file)
-                    for macro in config_data.get('macros', []):
-                        self.macro_list.append(macro)
-
-    # def build_transformer(self):
-    #     self.load_config()
-    #     for macro in self.macro_list:
-    #         self.create_macro_method(macro)
-
-
-    def get_import_code(self):
-        # 遍历self.compiled_macro_list获取macro调用的module，并生成Python的import代码
-        # 存储在macro['python_module']中
-        import_statements = set()
-        for macro in self.compiled_macro_list:
-            python_module = macro.get('python_module')
-            if python_module:
-                import_statements.add(f"import {python_module}")
-
-        return "\n".join(import_statements)
-    
 
     """
     构建缩进树

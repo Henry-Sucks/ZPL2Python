@@ -3,9 +3,9 @@
         "zpl_name": "FIELD",
         "python_name": "field",
         "built_in": false,
-        "input": ["field_num"],
+        "input": [{"name": "field_num", "type": "INT"}],
         "temp_vars":["api", "pro1", "field_data"],
-        "output": ["field_data"],
+        "output": [{"name": "field_data", "type": "DOUBLE"}],
         "import": ["example"],
         "code": "import example\n{{api}} = example.CSeeodAPI()\n{{pro1}} = {{api}}.get_field()\n{{field_data}} = {{api}}.get_field_data({{pro1}}, {{field_num}})\nreturn {{field_data}}"
     }
