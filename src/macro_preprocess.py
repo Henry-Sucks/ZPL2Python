@@ -152,11 +152,40 @@ def add_braces_to_vars(code, vars_list):
         code = re.sub(pattern, f'{{{{{var}}}}}', code)
     return code
 
+def record_code_with_escapes(code):
+    """
+    记录代码的换行与缩进，并转换成一串包含转义符的字符串。
+
+    参数:
+    - code: 源代码字符串。
+
+    返回:
+    - 包含转义符的字符串。
+    """
+    lines = code.split('\n')
+    escaped_code = []
+
+    for line in lines:
+        # 记录换行符
+        escaped_code.append('\\n')
+        # 记录缩进
+        indent = len(line) - len(line.lstrip())
+        escaped_code.append('\\t' * indent)
+        # 记录行内容
+        escaped_code.append(line.strip())
+
+    return ''.join(escaped_code)
+
+
+
 
 
 code = """
 import example
-temp = input1 * input2
+if input1 > 1:
+    temp = input1 * input2
+else:
+    temp = input1 + input2
 api = example.CSeeodAPI()
 pro1 = api.get_field()
 field_data = api.get_field_data(temp, input3, api)
@@ -183,3 +212,8 @@ code_with_braces = add_braces_to_vars(code_with_braces, visitor.temp_vars)
 code_with_braces = add_braces_to_vars(code_with_braces, visitor.output)
 
 print(code_with_braces)
+
+# 记录代码的换行与缩进，并转换成一串字符串
+escaped_code = record_code_with_escapes(code_with_braces)
+
+print(escaped_code)
