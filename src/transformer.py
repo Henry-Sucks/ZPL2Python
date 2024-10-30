@@ -468,7 +468,7 @@ class ZPLTransformer(Transformer):
 
 
         # TODO: 让加载macro_dict更加自动化
-        with open("macros\macro_dict.json", 'r', encoding='utf-8') as file:
+        with open(r"macros\macro_dict.json", 'r', encoding='utf-8') as file:
             macro_dict = json.load(file)
 
         macro_def = macro_dict.get(macro_name)
