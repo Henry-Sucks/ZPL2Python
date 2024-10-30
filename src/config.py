@@ -1,0 +1,1 @@
+grammar_path = 'base_grammer_1.lark'

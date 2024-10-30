@@ -2,8 +2,84 @@ from lark import Transformer
 import json
 import os
 from .ind_tree_node import IndTreeNode
+from .tools import error_handler
 
-        
+class Symbol:
+    def __init__(self, symbol_type, element_type=None, value=None, dimensions=None, code=None):
+        self.symbol_type = symbol_type  # CONST / VAR / ARRAY / ARRAY_ELEMENT / MARCO / EXP
+        self.element_type = element_type  # INT / DOUBLE / STRING / BUILTIN / IMPORT
+        self.value = value # 定义：插入源代码的部分
+        self.dimensions = dimensions
+        self.code = code # 针对ARRAY_ELEMENT / MARCO / EXP 使得value的意义有价值
+
+    def __str__(self):
+        if self.symbol_type == "CONST":
+            return f"Symbol(type={self.symbol_type}, element_type={self.element_type}, value={self.value})"
+        elif self.symbol_type == "VAR":
+            return f"Symbol(type={self.symbol_type}, element_type={self.element_type}, value={self.value})"
+        elif self.symbol_type == "ARRAY":
+            return f"Symbol(type={self.symbol_type}, element_type={self.element_type}, dimensions={self.dimensions})"
+        elif self.symbol_type == "ARRAY_ELEMENT":
+            return f"Symbol(type={self.symbol_type}, element_type={self.element_type}, code={self.code})"
+        elif self.symbol_type == "MARCO":
+            return f"Symbol(type={self.symbol_type}, element_type={self.element_type}, code={self.code})"
+        elif self.symbol_type == "EXP":
+            return f"Symbol(type={self.symbol_type}, element_type={self.element_type}, code={self.code})"
+        else:
+            return f"Symbol(type={self.symbol_type}, element_type={self.element_type})"
+    
+class GlobalSymbolTable:
+    def __init__(self):
+        self.symbols = {}
+
+    def add_symbol(self, symbol):
+        if symbol.name in self.symbols:
+            error_handler(f"Symbol '{symbol.name}' already exists.")
+            raise ValueError(f"Symbol '{symbol.name}' already exists.")
+        self.symbols[symbol.name] = symbol
+
+    def is_symbol_exist(self, name):
+        return name in self.symbols
+
+    def get_symbol(self, name):
+        if name not in self.symbols:
+            error_handler(f"Symbol '{name}' does not exist.")
+            raise ValueError(f"Symbol '{name}' does not exist.")
+        return self.symbols[name]
+    
+    def remove_symbol(self, name):
+        if name not in self.symbols:
+            error_handler(f"Symbol '{name}' does not exist.")
+            raise ValueError(f"Symbol '{name}' does not exist.")
+        del self.symbols[name]
+
+    def __str__(self):
+        return str(self.symbols)
+    
+"""
+    工具函数
+"""
+# 判断数是INT还是DOUBLE
+def is_int(num):
+    try:
+        int(num)
+        return True
+    except ValueError:
+        return False
+    
+def concat_code_segments(segments):
+    result = []
+    for segment in segments:
+        if segment is not None:
+            result.append(segment)
+    
+    # 如果所有片段都为 None或空字符串，则返回None
+    if not result:
+        return None
+    
+    # 使用 '\n' 拼接所有非 None 的片段
+    return '\n'.join(result)
+
 
 class ZPLTransformer(Transformer):
     def __init__(self, config_dir):
@@ -15,6 +91,8 @@ class ZPLTransformer(Transformer):
         self.macro_list = []
         self.compiled_macro_list = []
 
+        self.global_symbol_table = GlobalSymbolTable()
+
 
     """
     value：数字、变量名、函数调用、字符串
@@ -23,80 +101,158 @@ class ZPLTransformer(Transformer):
         return item[0]
 
     def num(self, n):
-        return {"type": "num","content": n[0]}
+        if(is_int(n[0].value)):
+            symbol = Symbol("CONST", element_type="INT", value=n[0].value)
+        else:
+            symbol = Symbol("CONST", element_type="DOUBLE", value=n[0].value)
+        return symbol
     
     def string(self, str):
-        str = str[0][1:-1]
-        return {"type": "string","content": f"\"{str}\""}
+        symbol = Symbol("CONST", element_type="STRING", value=str[0][1:-1])
+        return symbol
     
-    def id_def(self, id):
-        return {"type": "id_def","content": id[0]}
-    
-    def id_val(self, id):
-        return {"type": "id_val","content": id[0]}
-    
-    def macro_ret(self, items):
-        return {"type": "macro_ret","content": items}
+    def id_var(self, items):
+        var_name = items[0]
+        if var_name.endswith('$'):
+            symbol = Symbol("VAR", element_type="STRING", name=var_name)
+        else:
+            if(len(items) > 1):
+                # ARRAY_ELEMENT:
+                # TODO: 无法报index超出范围的错误？
+
+                # 获取数组名
+                array_name = var_name
+
+
+                array_symbol = self.global_symbol_table.get_symbol(array_name)
+                if not array_symbol:
+                    # 检查数组未定义错误
+                    error_handler(f"Array '{array_name}' is not defined.")
+                    raise ValueError(f"Array '{array_name}' is not defined.")
+
+                array_dimensions = array_symbol.dimensions
+                array_type = array_symbol.element_type
+
+                # 检查数组维数
+                if(len(items) - 1 != array_dimensions):
+                    error_handler(f"Array '{array_name}' has {array_dimensions} dimensions, but {len(items) - 1} indices were provided.")
+                    raise ValueError(f"Array '{array_name}' has {array_dimensions} dimensions, but {len(items) - 1} indices were provided.")
+                
+                # 检查数组种类（无法做到）
+
+                # 获取index列表
+                array_indice = items[1:]
+                # 解析index列表，生成value和code
+                array_value = array_name+"["
+                array_code = ""
+
+                for index in array_indice:
+                    value = index.value
+                    code = index.code
+                    array_value += value + ','
+                    array_code += code
+
+                if array_value:
+                    array_value = array_value[:-1]
+                    array_value += "]"
+                
+                symbol = Symbol("ARRAY_ELEMENT",element_type=array_type, dimensions=array_dimensions, value=array_value, code=array_code)
+
+            else:
+                # 此处无法确定是VAR/ARRAY/ARRAY_ELEMENT, INT/DOUBLE
+                symbol = Symbol(None, None, value=var_name)
+        return symbol
     
     """
     表达式
     """ 
     def sub_exp(self, items):
+        symbol = Symbol("EXP")
         if(len(items) == 3):
+            symbol.value = f"({items[1].value})"
+            symbol.code = concat_code_segments([items[1].code])
             # 括号的情况
-            return f"( {items[1]} )"
         else:
-            return items[0]
+            symbol.value = items[0].value
+            symbol.code = items[0].code
+        return symbol
     
     def negate_exp(self, items):
+        symbol = Symbol("EXP")
         if(len(items) == 2):
-            return(f"-{items[1]}")
+            symbol.value = f"-{items[1].value}"
+            symbol.code = concat_code_segments([items[1].code])
         else:
-            return(items[0])
+            symbol.value = items[0].value
+            symbol.code = items[0].code
+        return symbol
             
     
     def mult_exp(self, items):
+        symbol = Symbol("EXP")
         if(len(items) == 1):
-            return(items[0])
+            symbol.value = items[0].value
+            symbol.code = items[0].code
         else:
             if(items[1] == "*"):
-                return(f"{items[0]} * {items[2]}")
+                symbol.value = f"{items[0].value} * {items[2].value}"
+                symbol.code = concat_code_segments([items[0].code, items[2].code])
             elif(items[1] == "/"):
-                return(f"{items[0]} / {items[2]}")
+                symbol.value = f"{items[0].value} / {items[2].value}"
+                symbol.code = concat_code_segments([items[0].code, items[2].code])
 
     
     def add_exp(self, items):
+        symbol = Symbol("EXP")
         if(len(items) == 1):
-            return(items[0])
+            symbol.value = items[0].value
+            symbol.code = items[0].code
         else:
             if(items[1] == "+"):
-                return(f"{items[0]} + {items[2]}")
+                symbol.value = f"{items[0].value} + {items[2].value}"
+                symbol.code = concat_code_segments([items[0].code, items[2].code])
             elif(items[1] == "-"):
-                return(f"{items[0]} - {items[2]}")
+                symbol.value = f"{items[0].value} - {items[2].value}"
+                symbol.code = concat_code_segments([items[0].code, items[2].code])
+        return symbol
     
     def comp_exp(self, items):
+        symbol = Symbol("EXP")
         if(len(items) == 1):
-            return(items[0])
+            symbol.value = items[0].value
+            symbol.code = items[0].code
         else:
             if(items[1] == "=="):
-                return(f"{items[0]} == {items[2]}")
+                symbol.value = f"{items[0].value} == {items[2].value}"
+                symbol.code = concat_code_segments([items[0].code, items[2].code])
             elif(items[1] == "<="):
-                return(f"{items[0]} <= {items[2]}")
+                symbol.value = f"{items[0].value} <= {items[2].value}"
+                symbol.code = concat_code_segments([items[0].code, items[2].code])
             elif(items[1] == ">="):
-                return(f"{items[0]} >= {items[2]}")
+                symbol.value = f"{items[0].value} >= {items[2].value}"
+                symbol.code = concat_code_segments([items[0].code, items[2].code])
             elif(items[1] == "!="):
-                return(f"{items[0]} != {items[2]}")
+                symbol.value = f"{items[0].value} != {items[2].value}"
+                symbol.code = concat_code_segments([items[0].code, items[2].code])
             elif(items[1] == "<"):
-                return(f"{items[0]} < {items[2]}")
+                symbol.value = f"{items[0].value} < {items[2].value}"
+                symbol.code = concat_code_segments([items[0].code, items[2].code])
             elif(items[1] == ">"):
-                return(f"{items[0]} > {items[2]}")
+                symbol.value = f"{items[0].value} > {items[2].value}"
+                symbol.code = concat_code_segments([items[0].code, items[2].code])
+            return symbol
             
     
     def not_exp(self, items):
+        symbol = Symbol("EXP")
         if(len(items) == 1):
-            return(items[0])
+            symbol.value = items[0].value
+            symbol.code = items[0].code
         else:
-            return(f"!{items[1]}")
+            symbol.value = f"!{items[1]}"
+            symbol.code = items[1].code
+        
+        return symbol
     
     def expression(self, items):
         cur_code = ""
@@ -131,6 +287,14 @@ class ZPLTransformer(Transformer):
     """
     ## 赋值语句
     def assign_stmt(self, items):
+        # TODO: 如果是一般变量，则直接赋值，没有重复定义以及数据类型检查
+        # TODO: 如果是数组名称，不允许直接赋值，一律报错
+        # TODO: 如果是数组元素，则检查数组是否存在，类型是否正确，以及索引是否合法，
+        # print(items)
+        # 一般变量
+        
+
+
         cur_code = ""
         var, _, val = items
         cur_code = f"{var} = {val}"
@@ -229,61 +393,50 @@ class ZPLTransformer(Transformer):
             for_node.set_children(node)
 
         return for_node
+    
+    def declare_stmt(self, items):
+        array_name = items[0]['value']
+        array_type = items[1]
+        array_dimensions = [int(token.value) for token in items[2:]]
+
+        # 重复声明/使用
+        if self.global_symbol_table.is_symbol_exist(array_name):
+            error_handler("Array already declared")
+
+        # 超过四维
+        if(len(array_dimensions) > 4):
+            error_handler("Array dimensions cannot exceed 4")
+
+        symbol = Symbol('ARRAY', element_type=array_type, dimensions=array_dimensions, value=array_name)
+        self.global_symbol_table.add_symbol(symbol)
+    
+        # 是否需要翻译Python代码？
+
+    def type(self, items):
+        return(items[0].value)
+
+    def release_stmt(self, items):
+        array_name = items[0]['content']
+        self.global_symbol_table.remove_symbol(array_name)
 
     def stmt(self, items):
         return items[0]
-    
+
+
     """
     宏处理
     """
+    def macro_call(self, items):
+        print(items)
+        return {'type': 'MACRO', 'value': 'res', 'code': items[0]}
+    
+    def macro_id(self, items):
+        return (items[0].value)
 
     def record_macro(self, macro):
         if macro not in self.compiled_macro_list:
             self.compiled_macro_list.append(macro)
 
-    # def create_macro_method(self, macro):
-
-
-        # if macro['type'] == 'built_in':
-        #     # Python内部实现调用
-        #     def macro_method(items):
-        #         self.record_macro(macro)
-        #         cur_code = f"{macro['python_call']}{items}"
-        #         return cur_code
-            
-        # else:
-        #     if macro['type'] == 'function':
-        #         # 普通函数调用
-        #         def macro_method(items):
-        #             self.record_macro(macro)
-        #             cur_code = f"{macro['python_module']}.{macro['python_call']}({items[0]})"
-        #             return cur_code
-            
-        #     elif macro['type'] == 'static_method':
-        #         # 静态方法调用
-        #         def macro_method(items):
-        #             self.record_macro(macro)
-        #             cur_code = f"{macro['python_module']}.{macro['python_class']}.{macro['python_call']}({items[0]})"
-        #             return cur_code
-        #     elif macro['type'] == 'member_method':
-        #         # 成员方法调用（有构造函数）
-        #         def macro_method(items):
-        #             self.record_macro(macro)
-        #             instance_name = f"{macro['python_class'].lower()}_instance"  # 动态生成类的实例名
-        #             cur_code = f"{instance_name} = {macro['python_module']}.{macro['python_class']}({items[0]})\n"
-        #             cur_code += f"{instance_name}.{macro['python_call']}()"
-        #             return cur_code
-        #     elif macro['type'] == 'constructor_method':
-        #         # 成员方法调用（构造函数在外）
-        #         def macro_method(items):
-        #             self.record_macro(macro)
-        #             instance_name = f"{macro['python_class'].lower()}_instance"
-        #             cur_code = f"{instance_name} = {macro['python_module']}.{macro['python_class']}()\n"
-        #             cur_code += f"{instance_name}.{macro['python_call']}({items[0]})"
-        #             return cur_code
-                
-        # method_name = f"{macro['zpl_macro'].lower()}_macro"
-        # setattr(self, method_name, macro_method)
 
     # 向transformer注入函数处理
     # 将config中定义的函数载入到字典中

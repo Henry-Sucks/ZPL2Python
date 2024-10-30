@@ -1,0 +1,15 @@
+{
+    "macros": [
+        {
+            "zpl_macro": "ABS"
+        },
+
+        {
+            "zpl_macro": "FIELD",
+            "input": ["index"],
+            "output": "field_data",
+            "temp_vars": ["pro1", "result"],
+            "code": "{{temp_vars[0]}} = api.get_field()\n{{temp_vars[1]}} = api.get_field_data({{temp_vars[0]}}, {{input[0]}})\nreturn {{temp_vars[1]}}"
+        }
+    ]
+}

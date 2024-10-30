@@ -8,6 +8,8 @@ stmt: print_stmt
         | if_stmt
         | goto_stmt
         | for_stmt
+        | declare_stmt
+        | release_stmt
 
 //// statement
 // PRINT语句
@@ -24,7 +26,7 @@ label_num: NATURAL_NUMBER       // 大于 0 的整数
 label_text: IDENTIFIER // 不得包含空格或者用作分隔符的其它特殊字符
 
 // 赋值语句
-assign_stmt: id_def ASSIGNOP expression
+assign_stmt: id_var ASSIGNOP expression
 
 // IF语句
 !if_stmt: "IF" expression "THEN" stmt
@@ -35,17 +37,29 @@ then_clause: stmt
 goto_stmt: "GOTO" expression
 
 // FOR-NEXT语句
-for_stmt: "FOR" id_val "," expression "," expression "," expression stmt* "NEXT"
+for_stmt: "FOR" id_var "," expression "," expression "," expression stmt* "NEXT"
+
+// DECLARE语句
+declare_stmt: "DECLARE" id_var "," type "," NATURAL_NUMBER ("," NATURAL_NUMBER)*
+type: DOUBLE | INTEGER
+
+// RELEASE语句
+release_stmt: "RELEASE" id_var
 
 //// expression
 expression_list: expression "," expression_list
                 | expression
                 | 
 
-expression: not_exp AND expression
+expression: macro_call
+            | not_exp AND expression
             | not_exp OR expression
             | not_exp XOR expression
             | not_exp
+
+macro_call: macro_id "(" expression_list ")"
+macro_id: IDENTIFIER
+
 not_exp: NOT comp_exp
         | comp_exp
 comp_exp: add_exp EQUAL  comp_exp 
@@ -68,14 +82,13 @@ sub_exp: LEFTPAREN expression RIGHTPAREN
 
 value: num
         | string
-        | macro_ret
-        | id_val
+        | id_var
 
 num: SIGNED_NUMBER
 string: ESCAPED_STRING
-id_def: IDENTIFIER   
-id_val: IDENTIFIER 
-function_id: IDENTIFIER
+id_var: IDENTIFIER "[" expression_list "]"
+       | IDENTIFIER
+
 
 //// lexer
 IDENTIFIER: CNAME
@@ -111,8 +124,8 @@ OR: "|"
 XOR: "^"
 NOT: "!"
 
-IF: "IF"
-ELSE: "ELSE"
+DOUBLE: "DOUBLE"
+INTEGER: "INTEGER"
 
 
     
@@ -124,9 +137,3 @@ ELSE: "ELSE"
 %ignore WS
 %ignore NEWLINE
 %ignore COMMENT
-
-
-//// 宏返回值
-macro_ret: abs_macro
-
-abs_macro: "ABS" "(" expression_list ")"
