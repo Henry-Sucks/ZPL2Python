@@ -95,6 +95,7 @@ value: num
 num: SIGNED_NUMBER
 string: ESCAPED_STRING
 id_var: IDENTIFIER "[" expression_list "]"
+       | IDENTIFIER "$"
        | IDENTIFIER
 
 

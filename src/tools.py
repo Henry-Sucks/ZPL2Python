@@ -25,6 +25,7 @@ def modify_config(config_path, var_name, new_value):
 
 def error_handler(something):
     print(something)
+    raise ValueError(something)
 
 
 def print_to_file(file_name, content):

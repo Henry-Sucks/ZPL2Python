@@ -23,7 +23,8 @@ def save_macro_dict(macro_dict, file_path):
         json.dump(macro_dict, f, indent=4)
 
 
-folder_path = "../macros"
-macros_data = load_macros_from_folder(folder_path)
+lib_path = "../macros/lib"
+save_path = "../macros"
+macros_data = load_macros_from_folder(lib_path)
 macro_dict = build_macro_dict(macros_data)
-save_macro_dict(macro_dict, f"{folder_path}/macro_dict.json")
+save_macro_dict(macro_dict, f"{save_path}/macro_dict.json")

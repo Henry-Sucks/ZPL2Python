@@ -24,3 +24,11 @@ with open('test2.zpl', 'r') as file:
 tree = test_parser.parse(text)
 transformer = ZPLTransformer(config_path)
 transformer.transform(tree)
+ind_tree = transformer.get_ind_tree()
+ind_tree.build_code()
+
+final_code = ind_tree.get_code()
+
+# 打开文件并写入内容
+with open('output.py', 'w') as f:  # 'w' 模式表示写入模式，如果文件不存在则创建
+    print(final_code, file=f)

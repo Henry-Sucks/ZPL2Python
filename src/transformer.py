@@ -8,10 +8,10 @@ import config
 class Symbol:
     def __init__(self, symbol_type, element_type=None, value=None, dimensions=None, code=None):
         self.symbol_type = symbol_type  # CONST / VAR / ARRAY / ARRAY_ELEMENT / MARCO / EXP
-        self.element_type = element_type  # INT / DOUBLE / STRING / BUILTIN / IMPORT
+        self.element_type = element_type  # INT / DOUBLE / STRING 
         self.value = value # 定义：插入源代码的部分
         self.dimensions = dimensions
-        self.code = code # 针对ARRAY_ELEMENT / MARCO / EXP 使得value的意义有价值
+        self.code = code # 针对ARRAY_ELEMENT / MARCO / EXP 赋值前需要执行的代码
 
     def __str__(self):
         if self.symbol_type == "CONST":
@@ -80,7 +80,13 @@ def concat_code_segments(segments):
         return None
     
     # 使用 '\n' 拼接所有非 None 的片段
-    return '\n'.join(result)
+    concatenated_code = '\n'.join(result)
+
+    # 检查最后一个字符是否为 '\n'，如果不是，则添加一个 '\n'
+    if concatenated_code[-1] != '\n':
+        concatenated_code += '\n'
+    
+    return concatenated_code
 
 def process_temp_var_name(var_list):
     """
@@ -104,6 +110,12 @@ def process_temp_var_name(var_list):
     import uuid
     temp_vars = {var: f'{var}_{uuid.uuid4().hex}' for var in var_list}
     return temp_vars
+
+def is_type_match(defined_type, actual_type):
+    if defined_type == "INT":
+        return actual_type == "INT"
+    elif defined_type == "DOUBLE":
+        return actual_type in ["INT", "DOUBLE"]
 
 
 
@@ -137,14 +149,16 @@ class ZPLTransformer(Transformer):
     
     def string(self, str):
         symbol = Symbol("CONST", element_type="STRING", value=str[0][1:-1])
+        print(f"String: {str[0][1:-1]}")
         return symbol
     
     def id_var(self, items):
         var_name = items[0]
-        if var_name.endswith('$'):
-            symbol = Symbol("VAR", element_type="STRING", name=var_name)
-        else:
-            if(len(items) > 1):
+        if(len(items) > 1):
+            if(items[1] == '$'):
+                # STRING
+                symbol = Symbol("VAR", element_type="STRING", name=var_name)
+            else:
                 # ARRAY_ELEMENT:
                 # TODO: 无法报index超出范围的错误？
 
@@ -186,9 +200,9 @@ class ZPLTransformer(Transformer):
                 
                 symbol = Symbol("ARRAY_ELEMENT",element_type=array_type, dimensions=array_dimensions, value=array_value, code=array_code)
 
-            else:
-                # 此处无法确定是VAR/ARRAY/ARRAY_ELEMENT, INT/DOUBLE
-                symbol = Symbol(None, None, value=var_name)
+        else:
+            # 此处无法确定是VAR/ARRAY, INT/DOUBLE
+            symbol = Symbol(None, None, value=var_name)
         return symbol
     
     """
@@ -208,7 +222,18 @@ class ZPLTransformer(Transformer):
         """
 
         # 定义运算符的类型检查规则
-        type_rules = {
+        type_rules_uni = {
+            # 一元运算符
+            '!': {
+                ("INT", ): "INT",
+                ("DOUBLE", ): "DOUBLE"
+            },
+            '-': {
+                ("INT", ): "INT",
+                ("DOUBLE", ): "DOUBLE"
+            },
+        }
+        type_rules_bi = {
             # 二元运算符
             '+': {
                 ("INT", "INT"): "INT",
@@ -307,20 +332,15 @@ class ZPLTransformer(Transformer):
             '$>=': {
                 ("STRING", "STRING"): "INT",
             },
-            # 一元运算符
-            '!': {
-                ("INT"): "INT",
-                ("DOUBLE"): "DOUBLE"
-            },
-            '-': {
-                ("INT"): "INT",
-                ("DOUBLE"): "DOUBLE"
-            },
         }
 
         # 获取运算符的类型检查规则
-        rules = type_rules.get(operator, {})
+        if(len(types) == 1):
+            rules = type_rules_uni.get(operator, {})
+        elif(len(types) == 2):
+            rules = type_rules_bi.get(operator, {})
 
+        
         # 检查是否存在对应的类型规则
         if types in rules:
             result_type = rules[types]
@@ -470,12 +490,14 @@ class ZPLTransformer(Transformer):
         symbol_list = []
         if len(items) == 0:
             return None
+        
         symbol_list.append(items[0])
 
         if(len(items) == 1):
             pass
         else:
-            symbol_list.extend(items[1:])
+            for exp in items[1]:
+                symbol_list.append(exp)
         return symbol_list
 
 
@@ -488,22 +510,57 @@ class ZPLTransformer(Transformer):
         # TODO: 如果是一般变量，则直接赋值，没有重复定义以及数据类型检查
         # TODO: 如果是数组名称，不允许直接赋值，一律报错
         # TODO: 如果是数组元素，则检查数组是否存在，类型是否正确，以及索引是否合法
-        # TODO: 如果是宏调用
-        # print(items)
-        # 一般变量
 
-        print(items)
+
+        left_sym = items[0]
+        left_sym_type = items[0].symbol_type
+        # 在符号表查询左侧元素，是否已被声明？
+        # 若已被声明：
+        # 若为VAR INT/DOUBLE变量，根据右侧元素类型进行类型转换
+        # 若为ARRAY变量，报错
+        # 若为STRING变量，根据右侧元素类型进行判断
+
+        # 若未被声明：
+        # 若为NONE
+        if left_sym_type == "NONE":
+            # 将其type改为VAR
+            # 将symbol放入全局符号表中
+            left_sym_type = "VAR"
+            left_sym.symbol_type = left_sym_type
+            self.global_symbol_table.add_symbol(left_sym)
+            
+
+        # 若为ARRAY_ELEMENT
+        # 若为STRING
+
+
+        right_sym = items[2]
+        right_sym_type = items[2].symbol_type
+        # 在符号表查询右侧元素，是否已被声明？
+        # 若已被声明：
+
+
+
+        # 若未被声明：
+        # 若为EXP
+        if right_sym_type == "EXP":
+            # 将左侧元素的elem_type与EXP的elem_type判断是否match？
+            pass
         
 
+        # 取出左侧代码
+        # 取出右侧代码
+        # 生成assign_code
+        assign_code = f"{left_sym.value} = {right_sym.value}\n"
 
-        cur_code = ""
-        var, _, val = items
-        cur_code = f"{var} = {val}"
+        # 取出左侧待执行的代码
+        # 取出右侧待执行的代码
+        pre_run_code = concat_code_segments([left_sym.code, right_sym.code])
 
+        node1 = IndTreeNode(pre_run_code)
+        node2 = IndTreeNode(assign_code)
 
-        cur_code += '\n'
-        node = IndTreeNode(cur_code)
-        return node
+        return [node1, node2]
     
     ## PRINT语句
     def print_stmt(self, items):
@@ -628,7 +685,6 @@ class ZPLTransformer(Transformer):
     宏处理
     """
     def macro_call(self, items):
-
         macro_name = items[0]
         exp_list = items[1]
         param_list = exp_list
@@ -646,10 +702,13 @@ class ZPLTransformer(Transformer):
             temp_vars = process_temp_var_name(macro_def['temp_vars'])
             code = macro_def['code']
 
+            # 完成param的个数判断
+            if len(param_list) != len(macro_def['input']):
+                error_handler("Parameter number mismatch")
             # 完成param的类型判断
             # 将param_list注入到macros.json中macro_name对应条目的code中
             for i, param in enumerate(param_list):
-                if param.element_type != macro_def['input'][i]['type']:
+                if not is_type_match(macro_def['input'][i]['type'], param.element_type):
                     error_handler("Parameter type mismatch")
                 code = code.replace(f'{{{{{macro_def["input"][i]['name']}}}}}', str(param.value))
 
@@ -661,16 +720,18 @@ class ZPLTransformer(Transformer):
             # TODO: 是否考虑多返回值的情况？
             output_vars = temp_vars[macro_def['output'][0]['name']]
             macro_symbol.value = output_vars
+            macro_symbol.element_type = macro_def['output'][0]['type']
 
             # 向code_list中末尾添加先前修改后的code
             code_list.append(code)
+            macro_code = concat_code_segments(code_list)
 
             # output的类型记录
-            macro_symbol.element_type = macro_def['output'][0]['type']
+            macro_symbol.element_type = macro_def['ret_type']
 
             # 将code_list作为macro_symbol.code
-            macro_symbol.code = code_list
-        
+            macro_symbol.code = macro_code
+
         return macro_symbol
             
     
