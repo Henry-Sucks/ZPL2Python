@@ -575,6 +575,7 @@ class ZPLTransformer(Transformer):
         return node
 
     def print_list(self, items):
+        print(items)
         list_code = ""
         # 处理当前的expression
         if len(items) == 0:
