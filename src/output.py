@@ -1,3 +1,3 @@
-abs_num_2b1434f3f4724fe88dbe5352d548ae06 = abs(-1)
-x = abs_num_2b1434f3f4724fe88dbe5352d548ae06
+abs_num_7395b75c30fb4a8397e3888ff134971b = abs(-1)
+print(abs_num_7395b75c30fb4a8397e3888ff134971b)
 

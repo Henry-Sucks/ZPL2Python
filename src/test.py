@@ -17,7 +17,7 @@ with open(base_grammar_path, 'r', encoding='utf-8') as file:
 
 test_parser = Lark(test_grammer, start='start')
 
-with open('test2.zpl', 'r') as file:
+with open('test.zpl', 'r') as file:
     text = file.read()
 
 

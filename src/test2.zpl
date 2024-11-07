@@ -1,2 +1,0 @@
-PRINT x, y, z
-

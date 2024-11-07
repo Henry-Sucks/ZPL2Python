@@ -1,7 +1,7 @@
 class IndTreeNode:
         def  __init__(self, value):
             self.code = ""
-            self.value = value
+            self.value = value if value is not None else ""
             self.children = []
 
             # 为什么是-1？因为top_node是一个空节点，需要耗费一次层数
@@ -38,6 +38,7 @@ class IndTreeNode:
             ## 将缩进+value中代码放入value中
             ## 增加缩进层数
             self.level = cur_level
+
             self.value = f"{self.get_indentation()}{self.value}"
             self.level += 1
 

@@ -7,11 +7,11 @@ import config
 
 class Symbol:
     def __init__(self, symbol_type, element_type=None, value=None, dimensions=None, code=None):
-        self.symbol_type = symbol_type  # CONST / VAR / ARRAY / ARRAY_ELEMENT / MARCO / EXP
-        self.element_type = element_type  # INT / DOUBLE / STRING 
+        self.symbol_type = symbol_type  # CONST / VAR / ARRAY / ARRAY_ELEMENT / EXP / NONE / MACRO(不会暴露出来，在EXP中处理)
+        self.element_type = element_type  # INT / DOUBLE / STRING / NONE
         self.value = value # 定义：插入源代码的部分
         self.dimensions = dimensions
-        self.code = code # 针对ARRAY_ELEMENT / MARCO / EXP 赋值前需要执行的代码
+        self.code = code # 针对ARRAY_ELEMENT / EXP / MACRO 赋值前需要执行的代码
 
     def __str__(self):
         if self.symbol_type == "CONST":
@@ -22,7 +22,7 @@ class Symbol:
             return f"Symbol(type={self.symbol_type}, element_type={self.element_type}, dimensions={self.dimensions})"
         elif self.symbol_type == "ARRAY_ELEMENT":
             return f"Symbol(type={self.symbol_type}, element_type={self.element_type}, code={self.code})"
-        elif self.symbol_type == "MARCO":
+        elif self.symbol_type == "MACRO":
             return f"Symbol(type={self.symbol_type}, element_type={self.element_type}, code={self.code})"
         elif self.symbol_type == "EXP":
             return f"Symbol(type={self.symbol_type}, element_type={self.element_type}, code={self.code})"
@@ -44,8 +44,7 @@ class GlobalSymbolTable:
 
     def get_symbol(self, name):
         if name not in self.symbols:
-            error_handler(f"Symbol '{name}' does not exist.")
-            raise ValueError(f"Symbol '{name}' does not exist.")
+            return None
         return self.symbols[name]
     
     def remove_symbol(self, name):
@@ -117,9 +116,13 @@ def is_type_match(defined_type, actual_type):
     elif defined_type == "DOUBLE":
         return actual_type in ["INT", "DOUBLE"]
 
+def parse_symbol(symbol):
+    pass
+    
 
-
-
+"""
+    工具函数结束
+"""
 
 class ZPLTransformer(Transformer):
     def __init__(self, config_dir):
@@ -564,30 +567,33 @@ class ZPLTransformer(Transformer):
     
     ## PRINT语句
     def print_stmt(self, items):
-        cur_code = ""
-        if all([elem is None for elem in items]):
-            cur_code += f"print()"
+        sym_list = items[0]
+        print_code = ""
+        pre_run_code = ""
+        if all([sym is None for sym in sym_list]):
+            print_code += f"print()\n"
         else:
-            cur_code += f"print({items[0]})"
-
-        cur_code += '\n'
-        node = IndTreeNode(cur_code)
-        return node
+            print_list = ', '.join([sym.value for sym in sym_list])
+            pre_run_list = [sym.code for sym in sym_list]
+            print_code += f"print({print_list})\n"
+            pre_run_code = concat_code_segments(pre_run_list)
+            
+        pre_run_node = IndTreeNode(pre_run_code)
+        print_node = IndTreeNode(print_code)
+        return [pre_run_node, print_node]
 
     def print_list(self, items):
-        print(items)
-        list_code = ""
+        sym_list = []
         # 处理当前的expression
         if len(items) == 0:
             return None
-        list_code = items[0]
+        sym_list.append(items[0])
 
-        # 如果不是最末字符串，将当前字符串加到先前字符串的左侧再返回
         if(len(items) == 1):
             pass
         else:
-            list_code = f"{list_code}, {items[1]}"
-        return list_code
+            sym_list.extend(items[1])
+        return sym_list
 
     ## IF语句
     def if_stmt(self, items):
